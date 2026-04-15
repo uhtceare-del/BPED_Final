@@ -20,3 +20,5 @@ Flutter application for the LNU BPED management workflow. It supports:
 - Google mobile sign-in uses `google_sign_in` and is initialized in `main.dart`.
 - New classes receive a generated invitation code stored as `classCode` in Firestore.
 - The checked-in tests focus on app-specific logic instead of the default Flutter counter sample.
+
+- use flutter run --dart-define=DEV_ADMIN_ENABLED=true -d chrome for admin access
