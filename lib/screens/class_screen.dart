@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
 import '../providers/class_provider.dart';
 import '../models/class_model.dart';
 import '../models/user_model.dart';
@@ -112,6 +113,13 @@ class ClassScreen extends ConsumerWidget {
                 );
                 return;
               }
+              final owner = ref.read(bootstrapAppUserProvider);
+              if (owner == null) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Your session is not ready yet.')),
+                );
+                return;
+              }
               ss(() => saving = true);
               try {
                 await ref
@@ -124,7 +132,7 @@ class ClassScreen extends ConsumerWidget {
                         schedule: schedCtrl.text.trim(),
                         classCode: code,
                         semesterLabel: semLabel,
-                        instructorId: '',
+                        instructorId: owner.uid,
                         enrolledStudentIds: const [],
                       ),
                     );

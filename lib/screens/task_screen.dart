@@ -1,9 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../constants/app_colors.dart';
 import '../models/task_model.dart';
+import '../providers/admin_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/class_provider.dart';
 import '../providers/task_provider.dart';
@@ -133,9 +133,12 @@ class TaskScreen extends ConsumerWidget {
                                 Icons.delete_outline,
                                 color: Colors.redAccent,
                               ),
-                              tooltip: 'Delete',
-                              onPressed: () =>
-                                  _confirmDelete(context: context, task: task),
+                              tooltip: 'Move to Trash',
+                              onPressed: () => _confirmDelete(
+                                context: context,
+                                ref: ref,
+                                task: task,
+                              ),
                             )
                           : Icon(
                               task.isQuiz
@@ -174,14 +177,15 @@ class TaskScreen extends ConsumerWidget {
 
   Future<void> _confirmDelete({
     required BuildContext context,
+    required WidgetRef ref,
     required TaskModel task,
   }) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Item'),
+        title: const Text('Move Item to Trash'),
         content: Text(
-          'Delete "${task.title}"? Deployed tasks and quizzes can be removed, but they are not editable.',
+          'Move "${task.title}" to trash? You can restore it later from the Recovery Center.',
         ),
         actions: [
           TextButton(
@@ -190,7 +194,7 @@ class TaskScreen extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Delete'),
+            child: const Text('Move to Trash'),
           ),
         ],
       ),
@@ -200,7 +204,8 @@ class TaskScreen extends ConsumerWidget {
       return;
     }
 
-    await FirebaseFirestore.instance.collection('tasks').doc(task.id).delete();
+    final deletedBy = ref.read(authControllerProvider).currentUser?.uid;
+    await adminDeleteTask(task.id, deletedBy: deletedBy);
   }
 }
 

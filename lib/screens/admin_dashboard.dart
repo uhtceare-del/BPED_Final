@@ -281,9 +281,22 @@ class _AdminClassesTab extends ConsumerWidget {
     final nameCtrl = TextEditingController(text: existing?.className ?? '');
     final subjectCtrl = TextEditingController(text: existing?.subject ?? '');
     final schedCtrl = TextEditingController(text: existing?.schedule ?? '');
+    final instructors = (ref.read(adminUsersProvider).value ?? const [])
+        .where((user) => (user['role'] ?? '').toString().toLowerCase() == 'instructor')
+        .toList()
+      ..sort(
+        (a, b) => (a['fullName'] ?? a['email']).toString().compareTo(
+          (b['fullName'] ?? b['email']).toString(),
+        ),
+      );
     String semester = existing?.semesterLabel.isNotEmpty == true
         ? existing!.semesterLabel
         : '1st Semester';
+    String? instructorId = existing?.instructorId.isNotEmpty == true
+        ? existing!.instructorId
+        : instructors.isNotEmpty
+        ? instructors.first['id']?.toString()
+        : null;
 
     showModalBottomSheet(
       context: context,
@@ -329,12 +342,44 @@ class _AdminClassesTab extends ConsumerWidget {
                 }
               },
             ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: instructorId,
+              decoration: const InputDecoration(labelText: 'Instructor'),
+              items: instructors
+                  .map(
+                    (user) => DropdownMenuItem(
+                      value: user['id'].toString(),
+                      child: Text(
+                        (user['fullName'] ?? user['email']).toString(),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: instructors.isEmpty
+                  ? null
+                  : (value) => setSheet(() => instructorId = value),
+            ),
+            if (instructors.isEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Create an instructor account first before assigning class ownership.',
+                style: TextStyle(
+                  color: Colors.orange.shade800,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ],
           buttonLabel: existing == null ? 'CREATE CLASS' : 'SAVE CHANGES',
           buttonColor: existing == null ? kNavy : Colors.blueAccent,
           onSubmit: () async {
             if (nameCtrl.text.trim().isEmpty) {
               throw Exception('Class name is required.');
+            }
+            if (instructorId == null || instructorId!.isEmpty) {
+              throw Exception('Assign an instructor before saving the class.');
             }
 
             if (existing == null) {
@@ -348,7 +393,7 @@ class _AdminClassesTab extends ConsumerWidget {
                       schedule: schedCtrl.text.trim(),
                       classCode: '',
                       semesterLabel: semester,
-                      instructorId: '',
+                      instructorId: instructorId!,
                       enrolledStudentIds: const [],
                     ),
                   );
@@ -361,6 +406,7 @@ class _AdminClassesTab extends ConsumerWidget {
                     'subject': subjectCtrl.text.trim(),
                     'schedule': schedCtrl.text.trim(),
                     'semesterLabel': semester,
+                    'instructorId': instructorId,
                   });
             }
           },

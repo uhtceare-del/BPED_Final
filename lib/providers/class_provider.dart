@@ -15,19 +15,22 @@ final allClassesProvider = StreamProvider<List<ClassModel>>((ref) {
     return Stream.value(const <ClassModel>[]);
   }
 
-  final authState = ref.watch(authStateProvider);
-  return authState.when(
-    data: (authUser) {
-      if (authUser == null) {
-        return Stream.value(const <ClassModel>[]);
-      }
+  final appUser = ref.watch(bootstrapAppUserProvider);
+  if (appUser == null) {
+    return Stream.value(const <ClassModel>[]);
+  }
 
-      final repository = ref.watch(classRepositoryProvider);
+  final repository = ref.watch(classRepositoryProvider);
+  switch (appUser.role.trim().toLowerCase()) {
+    case 'admin':
       return repository.getClasses();
-    },
-    loading: () => Stream.value(const <ClassModel>[]),
-    error: (_, _) => Stream.value(const <ClassModel>[]),
-  );
+    case 'instructor':
+      return repository.getClassesForInstructor(appUser.uid);
+    case 'student':
+      return repository.getClassesForStudent(appUser.uid);
+    default:
+      return Stream.value(const <ClassModel>[]);
+  }
 });
 
 final instructorClassesProvider = StreamProvider<List<ClassModel>>((ref) {
@@ -35,19 +38,14 @@ final instructorClassesProvider = StreamProvider<List<ClassModel>>((ref) {
     return Stream.value(const <ClassModel>[]);
   }
 
-  final authState = ref.watch(authStateProvider);
-  return authState.when(
-    data: (user) {
-      if (user == null) {
-        return Stream.value(const <ClassModel>[]);
-      }
-      return ref
-          .watch(classRepositoryProvider)
-          .getClassesForInstructor(user.uid);
-    },
-    loading: () => Stream.value(const <ClassModel>[]),
-    error: (_, _) => Stream.value(const <ClassModel>[]),
-  );
+  final appUser = ref.watch(bootstrapAppUserProvider);
+  if (appUser == null || appUser.role.trim().toLowerCase() != 'instructor') {
+    return Stream.value(const <ClassModel>[]);
+  }
+
+  return ref
+      .watch(classRepositoryProvider)
+      .getClassesForInstructor(appUser.uid);
 });
 
 // 3. Provider for student's classes
@@ -56,17 +54,12 @@ final myClassesProvider = StreamProvider<List<ClassModel>>((ref) {
     return Stream.value(const <ClassModel>[]);
   }
 
-  final authState = ref.watch(authStateProvider);
-  return authState.when(
-    data: (user) {
-      if (user == null) {
-        return Stream.value(const <ClassModel>[]);
-      }
-      return ref.watch(classRepositoryProvider).getClassesForStudent(user.uid);
-    },
-    loading: () => Stream.value(const <ClassModel>[]),
-    error: (_, _) => Stream.value(const <ClassModel>[]),
-  );
+  final appUser = ref.watch(bootstrapAppUserProvider);
+  if (appUser == null || appUser.role.trim().toLowerCase() != 'student') {
+    return Stream.value(const <ClassModel>[]);
+  }
+
+  return ref.watch(classRepositoryProvider).getClassesForStudent(appUser.uid);
 });
 
 // 4. Provider for students enrolled in a specific class
@@ -78,9 +71,17 @@ final studentsInClassProvider = StreamProvider.family<List<AppUser>, String>((
     return Stream.value(const <AppUser>[]);
   }
 
-  final authUser = ref.watch(authStateProvider).value;
-  if (authUser == null) {
+  final appUser = ref.watch(bootstrapAppUserProvider);
+  if (appUser == null) {
     return Stream.value(const <AppUser>[]);
+  }
+
+  if (appUser.role.trim().toLowerCase() == 'student') {
+    final enrolledClasses = ref.watch(myClassesProvider).value ?? const [];
+    final isEnrolled = enrolledClasses.any((cls) => cls.id == classId);
+    if (!isEnrolled) {
+      return Stream.value(const <AppUser>[]);
+    }
   }
 
   final firestore = ref.watch(firestoreProvider);

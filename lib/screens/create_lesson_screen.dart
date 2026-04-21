@@ -69,7 +69,8 @@ class _CreateLessonScreenState extends ConsumerState<CreateLessonScreen> {
 
     final user = ref.read(currentUserProvider).value;
     if (user == null) return;
-    final classes = ref.read(allClassesProvider).value ?? const <ClassModel>[];
+    final classes =
+        ref.read(instructorClassesProvider).value ?? const <ClassModel>[];
     ClassModel? selectedClass;
     for (final cls in classes) {
       if (cls.id == _selectedClassId) {
@@ -148,11 +149,8 @@ class _CreateLessonScreenState extends ConsumerState<CreateLessonScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider).value;
-    final classesAsync = ref.watch(allClassesProvider);
-    final instructorClasses = (classesAsync.value ?? const <ClassModel>[])
-        .where((cls) => cls.instructorId == user?.uid)
-        .toList();
+    final classesAsync = ref.watch(instructorClassesProvider);
+    final instructorClasses = classesAsync.value ?? const <ClassModel>[];
     ClassModel? selectedClass;
     for (final cls in instructorClasses) {
       if (cls.id == _selectedClassId) {

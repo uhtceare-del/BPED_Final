@@ -1,0 +1,53 @@
+services:
+  admin-debug:
+    profiles: ["debug"]
+    build:
+      context: .
+      target: tooling
+    working_dir: /app
+    ports:
+      - "8080:8080"
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      EMAILJS_SERVICE_ID: ${EMAILJS_SERVICE_ID:-}
+      EMAILJS_TEMPLATE_ID: ${EMAILJS_TEMPLATE_ID:-}
+      EMAILJS_PUBLIC_KEY: ${EMAILJS_PUBLIC_KEY:-}
+    volumes:
+      - .:/app
+      - flutter_pub_cache:/root/.pub-cache
+      - flutter_dart_tool:/app/.dart_tool
+      - flutter_build:/app/build
+    stdin_open: true
+    tty: true
+    command: >
+      bash -lc "
+      flutter pub get &&
+      flutter run -d web-server
+      --web-hostname 0.0.0.0
+      --web-port 8080
+      --dart-define=DEV_ADMIN_ENABLED=true
+      --dart-define=SUPABASE_URL=$${SUPABASE_URL}
+      --dart-define=SUPABASE_ANON_KEY=$${SUPABASE_ANON_KEY}
+      --dart-define=EMAILJS_SERVICE_ID=$${EMAILJS_SERVICE_ID}
+      --dart-define=EMAILJS_TEMPLATE_ID=$${EMAILJS_TEMPLATE_ID}
+      --dart-define=EMAILJS_PUBLIC_KEY=$${EMAILJS_PUBLIC_KEY}"
+
+  app-prod:
+    profiles: ["prod"]
+    build:
+      context: .
+      target: web-prod
+      args:
+        SUPABASE_URL: ${SUPABASE_URL:-}
+        SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+        EMAILJS_SERVICE_ID: ${EMAILJS_SERVICE_ID:-}
+        EMAILJS_TEMPLATE_ID: ${EMAILJS_TEMPLATE_ID:-}
+        EMAILJS_PUBLIC_KEY: ${EMAILJS_PUBLIC_KEY:-}
+    ports:
+      - "8081:80"
+
+volumes:
+  flutter_pub_cache:
+  flutter_dart_tool:
+  flutter_build:

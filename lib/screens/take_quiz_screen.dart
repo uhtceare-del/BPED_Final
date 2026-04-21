@@ -56,7 +56,7 @@ class _TakeQuizScreenState extends ConsumerState<TakeQuizScreen> {
         id: '',
         taskId: widget.task.id,
         studentId: user.uid,
-        studentEmail: user.email ?? 'No Email',
+        studentEmail: user.email,
         submittedAt: DateTime.now(),
         grade: finalGrade,
         instructorId: widget.task.instructorId, // THE MASTER KEY
@@ -180,24 +180,25 @@ class _TakeQuizScreenState extends ConsumerState<TakeQuizScreen> {
                               ),
                             ),
                             const SizedBox(height: 10),
-                            ...List.generate(question.choices.length, (
-                              choiceIndex,
-                            ) {
-                              return RadioListTile<int>(
-                                title: Text(question.choices[choiceIndex]),
-                                value: choiceIndex,
-                                groupValue: _selectedAnswers[question.id],
-                                activeColor: const Color(0xFF002147),
-                                onChanged: (value) {
-                                  if (value != null) {
-                                    setState(
-                                      () =>
-                                          _selectedAnswers[question.id] = value,
-                                    );
-                                  }
-                                },
-                              );
-                            }),
+                            RadioGroup<int>(
+                              groupValue: _selectedAnswers[question.id],
+                              onChanged: (value) {
+                                setState(
+                                  () => _selectedAnswers[question.id] = value!,
+                                );
+                              },
+                              child: Column(
+                                children: List.generate(question.choices.length, (
+                                  choiceIndex,
+                                ) {
+                                  return RadioListTile<int>(
+                                    title: Text(question.choices[choiceIndex]),
+                                    value: choiceIndex,
+                                    activeColor: const Color(0xFF002147),
+                                  );
+                                }),
+                              ),
+                            ),
                           ],
                         ),
                       ),

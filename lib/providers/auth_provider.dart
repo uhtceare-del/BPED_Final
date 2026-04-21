@@ -204,6 +204,18 @@ final authBootstrapProvider = StreamProvider<AuthBootstrapState>((ref) async* {
   });
 });
 
+final bootstrapAppUserProvider = Provider<AppUser?>((ref) {
+  final bootstrapState = ref.watch(authBootstrapProvider).valueOrNull;
+  if (bootstrapState?.status != AuthBootstrapStatus.ready) {
+    return null;
+  }
+  return bootstrapState?.appUser;
+});
+
+final bootstrapProfileReadyProvider = Provider<bool>((ref) {
+  return ref.watch(bootstrapAppUserProvider) != null;
+});
+
 // ── Result types ──────────────────────────────────────────────────────────────
 
 enum GoogleSignInResult { existingUser, newUser, cancelled, error }
@@ -501,12 +513,12 @@ class AuthRepository {
       await firestore.collection('users').doc(cred.user!.uid).set({
         'fullName': fullName ?? email.split('@')[0],
         'email': email,
-        'role': role,
+        'role': role == 'student' ? '' : role,
         'avatarUrl': avatarUrl ?? '',
         'createdAt': FieldValue.serverTimestamp(),
-        'section': section,
-        'yearLevel': yearLevel,
-        'onboardingCompleted': true,
+        'section': role == 'student' ? '' : section,
+        'yearLevel': role == 'student' ? '' : yearLevel,
+        'onboardingCompleted': role == 'student' ? false : true,
         'isDeleted': false,
         'isDisabled': false,
       });
@@ -542,7 +554,7 @@ class AuthRepository {
       'createdAt': FieldValue.serverTimestamp(),
       'isDeleted': false,
       'isDisabled': false,
-    });
+    }, SetOptions(merge: true));
   }
 
   Future<void> updateUserAvatar({

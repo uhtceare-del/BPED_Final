@@ -219,6 +219,15 @@ Future<void> adminCreateUser(Map<String, dynamic> data) async {
   final email = data['email'] as String;
   final password = (data['password'] as String?)?.trim();
   final role = (data['role'] as String?)?.trim() ?? 'student';
+  final payload = {
+    ...Map<String, dynamic>.from(data)..remove('password'),
+    'role': role,
+    'avatarUrl': data['avatarUrl'] ?? '',
+    'createdAt': FieldValue.serverTimestamp(),
+    'onboardingCompleted': data['onboardingCompleted'] ?? true,
+    'isDeleted': false,
+    'isDisabled': false,
+  };
 
   if (password != null && password.isNotEmpty) {
     final appName = 'AdminSecondary_${DateTime.now().millisecondsSinceEpoch}';
@@ -229,39 +238,27 @@ Future<void> adminCreateUser(Map<String, dynamic> data) async {
 
     try {
       final secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
-      final secondaryDb = FirebaseFirestore.instanceFor(app: secondaryApp);
       final cred = await secondaryAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       final uid = cred.user!.uid;
-      await secondaryDb.collection('users').doc(uid).set({
-        ...Map<String, dynamic>.from(data)..remove('password'),
-        'uid': uid,
-        'role': role,
-        'avatarUrl': data['avatarUrl'] ?? '',
-        'createdAt': FieldValue.serverTimestamp(),
-        'onboardingCompleted': data['onboardingCompleted'] ?? true,
-        'isDeleted': false,
-        'isDisabled': false,
-      });
-      await secondaryAuth.signOut();
+      try {
+        await _db.collection('users').doc(uid).set({...payload, 'uid': uid});
+      } catch (_) {
+        await cred.user?.delete();
+        rethrow;
+      } finally {
+        await secondaryAuth.signOut();
+      }
     } finally {
       await secondaryApp.delete();
     }
     return;
   }
 
-  final ref = await _db.collection('users').add({
-    ...Map<String, dynamic>.from(data)..remove('password'),
-    'role': role,
-    'avatarUrl': data['avatarUrl'] ?? '',
-    'createdAt': FieldValue.serverTimestamp(),
-    'onboardingCompleted': data['onboardingCompleted'] ?? true,
-    'isDeleted': false,
-    'isDisabled': false,
-  });
+  final ref = await _db.collection('users').add(payload);
   await ref.update({'uid': ref.id});
 }
 

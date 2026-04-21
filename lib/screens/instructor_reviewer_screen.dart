@@ -110,31 +110,34 @@ class _InstructorReviewerScreenState
 
   // --- NEW: DIALOG TO PICK A CLASS ---
   Future<String?> _showSelectClassDialog(String instructorId) async {
-    // Fetch the instructor's classes from Firestore
     final classesSnapshot = await FirebaseFirestore.instance
         .collection(
           'classes',
-        ) // Check if your collection is 'classes' or 'courses'!
-        .get(); // Note: You might want to filter this by instructorId if needed
+        )
+        .where('instructorId', isEqualTo: instructorId)
+        .get();
 
+    if (!context.mounted) {
+      return null;
+    }
+
+    final dialogContext = context;
     final classes = classesSnapshot.docs;
 
     if (classes.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("You need to create a class first!"),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        const SnackBar(
+          content: Text("You need to create a class first!"),
+          backgroundColor: Colors.orange,
+        ),
+      );
       return null;
     }
 
     String? chosenClassId;
 
     return await showDialog<String>(
-      context: context,
+      context: dialogContext,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
@@ -156,7 +159,7 @@ class _InstructorReviewerScreenState
                       border: OutlineInputBorder(),
                     ),
                     hint: const Text("Select a Class"),
-                    value: chosenClassId,
+                    initialValue: chosenClassId,
                     items: classes.map((doc) {
                       final data = doc.data();
                       return DropdownMenuItem<String>(

@@ -13,6 +13,9 @@ final tasksByLessonProvider = StreamProvider.family<List<TaskModel>, String>((
   ref,
   lessonId,
 ) {
+  if (!ref.watch(bootstrapProfileReadyProvider)) {
+    return Stream.value(const <TaskModel>[]);
+  }
   return ref.watch(taskRepositoryProvider).getTasksByLesson(lessonId);
 });
 final allTasksProvider = StreamProvider<List<TaskModel>>((ref) {
@@ -20,17 +23,32 @@ final allTasksProvider = StreamProvider<List<TaskModel>>((ref) {
     return Stream.value(const <TaskModel>[]);
   }
 
-  final authState = ref.watch(authStateProvider);
-  return authState.when(
-    data: (authUser) {
-      if (authUser == null) {
-        return Stream.value(const <TaskModel>[]);
-      }
+  final appUser = ref.watch(bootstrapAppUserProvider);
+  if (appUser == null) {
+    return Stream.value(const <TaskModel>[]);
+  }
+
+  switch (appUser.role.trim().toLowerCase()) {
+    case 'admin':
       return ref.watch(taskRepositoryProvider).getAllTasks();
-    },
-    loading: () => Stream.value(const <TaskModel>[]),
-    error: (_, _) => Stream.value(const <TaskModel>[]),
-  );
+    case 'instructor':
+      return ref.watch(taskRepositoryProvider).getTasksForInstructor(appUser.uid);
+    case 'student':
+      final classesAsync = ref.watch(myClassesProvider);
+      return classesAsync.when(
+        data: (classes) {
+          final classIds = classes.map((cls) => cls.id).toList(growable: false);
+          if (classIds.isEmpty) {
+            return Stream.value(const <TaskModel>[]);
+          }
+          return ref.watch(taskRepositoryProvider).getTasksForClassIds(classIds);
+        },
+        loading: () => Stream.value(const <TaskModel>[]),
+        error: (_, _) => Stream.value(const <TaskModel>[]),
+      );
+    default:
+      return Stream.value(const <TaskModel>[]);
+  }
 });
 
 final instructorTasksProvider = StreamProvider<List<TaskModel>>((ref) {
@@ -38,17 +56,12 @@ final instructorTasksProvider = StreamProvider<List<TaskModel>>((ref) {
     return Stream.value(const <TaskModel>[]);
   }
 
-  final authState = ref.watch(authStateProvider);
-  return authState.when(
-    data: (user) {
-      if (user == null) {
-        return Stream.value(const <TaskModel>[]);
-      }
-      return ref.watch(taskRepositoryProvider).getTasksForInstructor(user.uid);
-    },
-    loading: () => Stream.value(const <TaskModel>[]),
-    error: (_, _) => Stream.value(const <TaskModel>[]),
-  );
+  final appUser = ref.watch(bootstrapAppUserProvider);
+  if (appUser == null || appUser.role.trim().toLowerCase() != 'instructor') {
+    return Stream.value(const <TaskModel>[]);
+  }
+
+  return ref.watch(taskRepositoryProvider).getTasksForInstructor(appUser.uid);
 });
 
 final tasksForMyClassesProvider = StreamProvider<List<TaskModel>>((ref) {
@@ -72,8 +85,10 @@ final studentTasksProvider = StreamProvider.autoDispose<List<TaskModel>>((ref) {
     return Stream.value(const <TaskModel>[]);
   }
 
-  final user = ref.watch(firebaseAuthProvider).currentUser;
-  if (user == null) return Stream.value(const <TaskModel>[]);
+  final appUser = ref.watch(bootstrapAppUserProvider);
+  if (appUser == null || appUser.role.trim().toLowerCase() != 'student') {
+    return Stream.value(const <TaskModel>[]);
+  }
 
   // Use Timestamp.now() to avoid errors
   final now = Timestamp.now();
@@ -81,7 +96,7 @@ final studentTasksProvider = StreamProvider.autoDispose<List<TaskModel>>((ref) {
   final stream = ref
       .watch(firestoreProvider)
       .collection('users')
-      .doc(user.uid)
+      .doc(appUser.uid)
       .collection('tasks')
       .where('deadline', isGreaterThanOrEqualTo: now)
       .orderBy('deadline')

@@ -1,0 +1,32 @@
+# Git
+.git
+.gitignore
+
+# Flutter and Dart build output
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Platform build output
+android/.gradle/
+android/app/build/
+ios/Pods/
+ios/.symlinks/
+macos/Pods/
+
+# Coverage and IDE files
+coverage/
+.idea/
+.vscode/
+*.iml
+
+# Local secrets and signing assets
+android/local.properties
+android/key.properties
+android/app/release.keystore
+android/app/google-services.json
+google-services.json
+lib/config/local_config.dart
+*.keystore
+*.jks

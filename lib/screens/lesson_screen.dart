@@ -1,131 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../constants/app_colors.dart';
 import '../models/class_model.dart';
 import '../models/lesson_model.dart';
+import '../providers/admin_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/class_provider.dart';
-import 'lesson_detail_screen.dart';
-import 'create_lesson_screen.dart';
-import '../constants/app_colors.dart';
+import '../providers/lesson_provider.dart';
 import '../widgets/dashboard_module.dart';
-
-final studentClassIdsForLessonsProvider =
-    StreamProvider.autoDispose<List<String>>((ref) {
-      final user = ref.watch(currentUserProvider).value;
-      if (user == null || user.role.toLowerCase() == 'instructor') {
-        return Stream.value([]);
-      }
-
-      return FirebaseFirestore.instance
-          .collection('classes')
-          .where('enrolledStudentIds', arrayContains: user.uid)
-          .snapshots()
-          .map(
-            (snapshot) => snapshot.docs.map((doc) => doc.id).toSet().toList(),
-          );
-    });
-
-// --- 2. THE FIX: SECURED MASTER-KEY LESSON STREAM ---
-final securedLessonsStreamProvider =
-    StreamProvider.autoDispose<List<LessonModel>>((ref) async* {
-      final user = ref.watch(currentUserProvider).value;
-      if (user == null) {
-        yield [];
-        return;
-      }
-
-      final isInstructor = user.role.toLowerCase() == 'instructor';
-      final db = FirebaseFirestore.instance;
-
-      if (isInstructor) {
-        // INSTRUCTOR: Only see lessons they created themselves
-        yield* db
-            .collection('lessons')
-            .where('instructorId', isEqualTo: user.uid)
-            .snapshots()
-            .map(
-              (snapshot) => snapshot.docs
-                  .map((doc) => LessonModel.fromFirestore(doc))
-                  .toList(),
-            );
-      } else {
-        final classIdsAsync = ref.watch(studentClassIdsForLessonsProvider);
-
-        if (classIdsAsync.isLoading || classIdsAsync.hasError) {
-          yield [];
-          return;
-        }
-
-        final classIds = classIdsAsync.value ?? [];
-        if (classIds.isEmpty) {
-          yield [];
-          return;
-        }
-
-        yield* db
-            .collection('lessons')
-            .where('classId', whereIn: classIds)
-            .snapshots()
-            .map(
-              (snapshot) => snapshot.docs
-                  .map((doc) => LessonModel.fromFirestore(doc))
-                  .toList(),
-            );
-      }
-    });
-// --------------------------------------------------
+import 'create_lesson_screen.dart';
+import 'lesson_detail_screen.dart';
 
 class LessonScreen extends ConsumerWidget {
   const LessonScreen({super.key});
 
-  // --- CRUD: DELETE LESSON ---
-  void _showDeleteLessonDialog(BuildContext context, LessonModel lesson) {
+  void _showDeleteLessonDialog(
+    BuildContext context,
+    WidgetRef ref,
+    LessonModel lesson,
+  ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
-          "Delete Lesson",
-          style: TextStyle(
-            color: Colors.redAccent,
-            fontWeight: FontWeight.bold,
-          ),
+        title: const Text('Move Lesson to Trash'),
+        content: Text(
+          "Move '${lesson.title}' to trash? You can restore it later from the Recovery Center.",
         ),
-        content: Text("Are you sure you want to delete '${lesson.title}'?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("CANCEL", style: TextStyle(color: Colors.grey)),
+            child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+          FilledButton(
             onPressed: () async {
               Navigator.pop(ctx);
               try {
-                await FirebaseFirestore.instance
-                    .collection('lessons')
-                    .doc(lesson.id)
-                    .delete();
+                final deletedBy = ref.read(authControllerProvider).currentUser?.uid;
+                await adminDeleteLesson(lesson.id, deletedBy: deletedBy);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Lesson deleted!"),
-                      backgroundColor: Colors.redAccent,
-                    ),
+                    const SnackBar(content: Text('Lesson moved to trash.')),
                   );
                 }
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("Error deleting: $e"),
-                      backgroundColor: Colors.red,
-                    ),
+                    SnackBar(content: Text('Error deleting: $e')),
                   );
                 }
               }
             },
-            child: const Text("DELETE", style: TextStyle(color: Colors.white)),
+            child: const Text('Move to Trash'),
           ),
         ],
       ),
@@ -134,7 +60,7 @@ class LessonScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final lessonsAsync = ref.watch(securedLessonsStreamProvider);
+    final lessonsAsync = ref.watch(lessonsForCurrentUserProvider);
     final currentUser = ref.watch(currentUserProvider).value;
     final classesAsync = ref.watch(allClassesProvider);
     final isInstructor = currentUser?.role.toLowerCase() == 'instructor';
@@ -409,10 +335,11 @@ class LessonScreen extends ConsumerWidget {
                                               Icons.delete_outline,
                                               color: Colors.redAccent,
                                             ),
-                                            tooltip: "Delete Lesson",
+                                            tooltip: 'Move to Trash',
                                             onPressed: () =>
                                                 _showDeleteLessonDialog(
                                                   context,
+                                                  ref,
                                                   lesson,
                                                 ),
                                           ),

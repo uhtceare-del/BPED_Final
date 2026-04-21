@@ -56,7 +56,7 @@ class _StudentTaskDetailScreenState
           id: '',
           taskId: widget.task.id,
           studentId: currentUser.uid,
-          studentEmail: currentUser.email ?? 'No Email',
+          studentEmail: currentUser.email,
           submittedAt: DateTime.now(),
           grade: null,
           fileUrl: uploadedUrl, // Stores the performance link
