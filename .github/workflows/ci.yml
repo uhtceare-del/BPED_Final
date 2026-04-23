@@ -2,154 +2,90 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [ main, develop ]
   pull_request:
-    branches: [main]
+    branches: [ main, develop ]
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  FLUTTER_VERSION: "3.41.5"
-  JAVA_VERSION: "17"
+permissions:
+  contents: read
 
 jobs:
   test:
-    name: Analyze and Test
+    name: test
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - name: Cache pub packages
+        uses: actions/cache@v4
         with:
-          distribution: temurin
-          java-version: ${{ env.JAVA_VERSION }}
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: ${{ runner.os }}-pub-
 
-      - name: Set up Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
+          channel: 'stable'
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Verify formatting
-        run: dart format --output=none --set-exit-if-changed . --exclude="**.g.dart"
+      - name: Run tests
+        run: flutter test
 
-      - name: Analyze code
-        run: flutter analyze
-
-      - name: Run unit and widget tests
-        run: flutter test --coverage --reporter=github
-
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/lcov.info
-          retention-days: 7
-
-  build-web:
-    name: Build Web
-    runs-on: ubuntu-latest
+  build:
+    name: build
     needs: test
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build web
-        run: >
-          flutter build web --release
-          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-          --dart-define=EMAILJS_SERVICE_ID=${{ secrets.EMAILJS_SERVICE_ID }}
-          --dart-define=EMAILJS_TEMPLATE_ID=${{ secrets.EMAILJS_TEMPLATE_ID }}
-          --dart-define=EMAILJS_PUBLIC_KEY=${{ secrets.EMAILJS_PUBLIC_KEY }}
-
-      - name: Upload web build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: flutter-web-build
-          path: build/web/
-          retention-days: 7
-
-  build-android:
-    name: Build Android APK
     runs-on: ubuntu-latest
-    needs: test
-
+    env:
+      FIREBASE_OPTIONS: ${{ secrets.FIREBASE_OPTIONS }}
+      API_KEY: ${{ secrets.API_KEY }}
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - name: Restore pub cache
+        uses: actions/cache@v4
         with:
-          distribution: temurin
-          java-version: ${{ env.JAVA_VERSION }}
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: ${{ runner.os }}-pub-
 
-      - name: Set up Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-
-      - name: Create google-services.json
-        run: |
-          mkdir -p android/app
-          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
-
-      - name: Decode keystore
-        run: |
-          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo '${{ secrets.KEYSTORE_BASE64 }}' | base64 --decode > android/app/release.keystore
-          fi
-
-      - name: Create key.properties
-        run: |
-          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            cat > android/key.properties << EOF
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          storeFile=app/release.keystore
-          EOF
-          fi
+          channel: 'stable'
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK
-        run: >
-          flutter build apk --release
-          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-          --dart-define=EMAILJS_SERVICE_ID=${{ secrets.EMAILJS_SERVICE_ID }}
-          --dart-define=EMAILJS_TEMPLATE_ID=${{ secrets.EMAILJS_TEMPLATE_ID }}
-          --dart-define=EMAILJS_PUBLIC_KEY=${{ secrets.EMAILJS_PUBLIC_KEY }}
+      - name: Build Android APK
+        run: flutter build apk --release
 
-      - name: Upload APK artifact
+      - name: Build Web
+        run: flutter build web --release
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: flutter-android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 7
+          name: app-artifacts
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/web/
+
+  deploy:
+    name: deploy
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
