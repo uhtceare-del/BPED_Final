@@ -103,18 +103,25 @@ jobs:
     needs: [test, build]
     if: always()
     runs-on: ubuntu-latest
+    env:
+      SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      CI_EMAIL_TO: ${{ secrets.CI_EMAIL_TO }}
+      CI_EMAIL_FROM: ${{ secrets.CI_EMAIL_FROM }}
     steps:
       - name: Send CI status email
-        if: github.event_name == 'push' && secrets.SMTP_SERVER != '' && secrets.SMTP_PORT != '' && secrets.SMTP_USERNAME != '' && secrets.SMTP_PASSWORD != '' && secrets.CI_EMAIL_TO != '' && secrets.CI_EMAIL_FROM != ''
+        if: github.event_name == 'push' && env.SMTP_SERVER != '' && env.SMTP_PORT != '' && env.SMTP_USERNAME != '' && env.SMTP_PASSWORD != '' && env.CI_EMAIL_TO != '' && env.CI_EMAIL_FROM != ''
         uses: dawidd6/action-send-mail@v6
         with:
-          server_address: ${{ secrets.SMTP_SERVER }}
-          server_port: ${{ secrets.SMTP_PORT }}
-          username: ${{ secrets.SMTP_USERNAME }}
-          password: ${{ secrets.SMTP_PASSWORD }}
+          server_address: ${{ env.SMTP_SERVER }}
+          server_port: ${{ env.SMTP_PORT }}
+          username: ${{ env.SMTP_USERNAME }}
+          password: ${{ env.SMTP_PASSWORD }}
           subject: CI ${{ needs.build.result == 'success' && needs.test.result == 'success' && 'passed' || 'failed' }} for ${{ github.repository }}
-          to: ${{ secrets.CI_EMAIL_TO }}
-          from: ${{ secrets.CI_EMAIL_FROM }}
+          to: ${{ env.CI_EMAIL_TO }}
+          from: ${{ env.CI_EMAIL_FROM }}
           secure: true
           body: |
             Repository: ${{ github.repository }}
