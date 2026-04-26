@@ -20,3 +20,15 @@ Flutter application for the LNU BPED management workflow. It supports:
 - Google mobile sign-in uses `google_sign_in` and is initialized in `main.dart`.
 - New classes receive a generated invitation code stored as `classCode` in Firestore.
 - The checked-in tests focus on app-specific logic instead of the default Flutter counter sample.
+
+## CI
+
+- GitHub Actions runs automatically on pushes and pull requests targeting `main` and `develop`.
+- The workflow runs module-level test suites for `models`, `services`, `config`, `providers`, and `widgets`.
+- If the following repository secrets are configured, the workflow also emails a pass/fail summary after push runs:
+  - `SMTP_SERVER`
+  - `SMTP_PORT`
+  - `SMTP_USERNAME`
+  - `SMTP_PASSWORD`
+  - `CI_EMAIL_TO`
+  - `CI_EMAIL_FROM`

@@ -11,8 +11,22 @@ permissions:
 
 jobs:
   test:
-    name: test
+    name: test (${{ matrix.suite }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: models
+            path: test/models
+          - suite: services
+            path: test/class_code_service_test.dart test/services
+          - suite: config
+            path: test/config
+          - suite: providers
+            path: test/providers
+          - suite: widgets
+            path: test/dashboard_analytics_test.dart test/widget_test.dart
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,16 +46,13 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Run tests
-        run: flutter test
+      - name: Run ${{ matrix.suite }} tests
+        run: flutter test ${{ matrix.path }}
 
   build:
     name: build
     needs: test
     runs-on: ubuntu-latest
-    env:
-      FIREBASE_OPTIONS: ${{ secrets.FIREBASE_OPTIONS }}
-      API_KEY: ${{ secrets.API_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,10 +73,22 @@ jobs:
         run: flutter pub get
 
       - name: Build Android APK
-        run: flutter build apk --release
+        run: >
+          flutter build apk --release
+          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          --dart-define=EMAILJS_SERVICE_ID=${{ secrets.EMAILJS_SERVICE_ID }}
+          --dart-define=EMAILJS_TEMPLATE_ID=${{ secrets.EMAILJS_TEMPLATE_ID }}
+          --dart-define=EMAILJS_PUBLIC_KEY=${{ secrets.EMAILJS_PUBLIC_KEY }}
 
       - name: Build Web
-        run: flutter build web --release
+        run: >
+          flutter build web --release
+          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          --dart-define=EMAILJS_SERVICE_ID=${{ secrets.EMAILJS_SERVICE_ID }}
+          --dart-define=EMAILJS_TEMPLATE_ID=${{ secrets.EMAILJS_TEMPLATE_ID }}
+          --dart-define=EMAILJS_PUBLIC_KEY=${{ secrets.EMAILJS_PUBLIC_KEY }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -75,17 +98,30 @@ jobs:
             build/app/outputs/flutter-apk/app-release.apk
             build/web/
 
-  deploy:
-    name: deploy
-    needs: build
+  notify:
+    name: notify
+    needs: [test, build]
+    if: always()
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Send CI status email
+        if: github.event_name == 'push' && secrets.SMTP_SERVER != '' && secrets.SMTP_PORT != '' && secrets.SMTP_USERNAME != '' && secrets.SMTP_PASSWORD != '' && secrets.CI_EMAIL_TO != '' && secrets.CI_EMAIL_FROM != ''
+        uses: dawidd6/action-send-mail@v6
         with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: CI ${{ needs.build.result == 'success' && needs.test.result == 'success' && 'passed' || 'failed' }} for ${{ github.repository }}
+          to: ${{ secrets.CI_EMAIL_TO }}
+          from: ${{ secrets.CI_EMAIL_FROM }}
+          secure: true
+          body: |
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Event: ${{ github.event_name }}
+            Overall result: ${{ needs.build.result == 'success' && needs.test.result == 'success' && 'passed' || 'failed' }}
+            Test result: ${{ needs.test.result }}
+            Build result: ${{ needs.build.result }}
+            Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
