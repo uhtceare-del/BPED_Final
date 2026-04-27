@@ -24,7 +24,7 @@ dependencies:
   hive_flutter: ^1.1.0
   path_provider: ^2.1.5
   dio: ^5.9.2
-  syncfusion_flutter_pdfviewer: ^24.1.41
+  syncfusion_flutter_pdfviewer: ^33.2.3
   video_player: ^2.8.2
   chewie: ^1.7.5
   file_picker: ^8.0.0+1
