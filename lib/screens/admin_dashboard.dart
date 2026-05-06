@@ -12,9 +12,11 @@ import '../providers/auth_provider.dart';
 import '../providers/class_provider.dart';
 import '../providers/submission_provider.dart';
 import '../providers/task_provider.dart';
+import '../screens/dashboard_reports_screen.dart';
 import '../screens/trash_screen.dart';
 import '../widgets/dashboard_analytics.dart';
 import '../widgets/dashboard_module.dart';
+import '../widgets/dashboard_report_views.dart';
 import '../widgets/dashboard_shell.dart';
 
 final _adminTabProvider = StateProvider<int>((ref) => 0);
@@ -42,7 +44,7 @@ class AdminDashboard extends ConsumerWidget {
     final userAsync = ref.watch(currentUserProvider);
     final screens = const [
       _AdminClassesTab(),
-      _AdminReportsTab(),
+      AdminReportsView(),
       _AdminUsersTab(),
       _AdminUploadsTab(),
     ];
@@ -90,6 +92,14 @@ class _AdminHeader extends ConsumerWidget {
           icon: Icons.restore_from_trash_outlined,
           tooltip: 'Trash',
           onPressed: () => _showTrashSheet(context),
+        ),
+        DashboardActionButton(
+          icon: Icons.bar_chart_outlined,
+          tooltip: 'Reports & Statistics',
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AdminReportsScreen()),
+          ),
         ),
         DashboardActionButton(
           icon: Icons.logout_rounded,
@@ -281,14 +291,18 @@ class _AdminClassesTab extends ConsumerWidget {
     final nameCtrl = TextEditingController(text: existing?.className ?? '');
     final subjectCtrl = TextEditingController(text: existing?.subject ?? '');
     final schedCtrl = TextEditingController(text: existing?.schedule ?? '');
-    final instructors = (ref.read(adminUsersProvider).value ?? const [])
-        .where((user) => (user['role'] ?? '').toString().toLowerCase() == 'instructor')
-        .toList()
-      ..sort(
-        (a, b) => (a['fullName'] ?? a['email']).toString().compareTo(
-          (b['fullName'] ?? b['email']).toString(),
-        ),
-      );
+    final instructors =
+        (ref.read(adminUsersProvider).value ?? const [])
+            .where(
+              (user) =>
+                  (user['role'] ?? '').toString().toLowerCase() == 'instructor',
+            )
+            .toList()
+          ..sort(
+            (a, b) => (a['fullName'] ?? a['email']).toString().compareTo(
+              (b['fullName'] ?? b['email']).toString(),
+            ),
+          );
     String semester = existing?.semesterLabel.isNotEmpty == true
         ? existing!.semesterLabel
         : '1st Semester';
@@ -1082,9 +1096,8 @@ class _AdminUsersTabState extends ConsumerState<_AdminUsersTab> {
                             return _UserCard(
                               user: user,
                               onEditPermissions: () => _openUserSheet(user),
-                              onEnable: () => adminEnableUser(
-                                user['id'].toString(),
-                              ),
+                              onEnable: () =>
+                                  adminEnableUser(user['id'].toString()),
                               onDelete: () => _showDeleteDialog(
                                 context,
                                 title: 'Delete User',
@@ -1280,17 +1293,17 @@ class _UserCard extends StatelessWidget {
                     ),
                   ),
                 PopupMenuItem<_UserMenuAction>(
-                    value: _UserMenuAction.delete,
-                    enabled: onDelete != null,
-                    child: const ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        Icons.delete_outline,
-                        color: Colors.redAccent,
-                      ),
-                      title: Text('Delete'),
+                  value: _UserMenuAction.delete,
+                  enabled: onDelete != null,
+                  child: const ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.delete_outline,
+                      color: Colors.redAccent,
                     ),
+                    title: Text('Delete'),
                   ),
+                ),
               ],
             ),
           ],

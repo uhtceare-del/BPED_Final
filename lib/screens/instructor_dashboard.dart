@@ -10,6 +10,7 @@ import '../models/submission_model.dart';
 import '../models/task_model.dart';
 import '../widgets/dashboard_analytics.dart';
 import '../widgets/dashboard_shell.dart';
+import 'dashboard_reports_screen.dart';
 import 'task_screen.dart';
 import 'lesson_screen.dart';
 import 'class_screen.dart';
@@ -83,28 +84,21 @@ class InstructorDashboard extends ConsumerWidget {
       selectedIndex: selectedIndex,
       onDestinationSelected: (i) =>
           ref.read(selectedModuleProvider.notifier).state = i,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final shouldConstrainOverview = constraints.maxHeight < 720;
-          final overviewHeight = constraints.maxHeight < 520 ? 180.0 : 260.0;
-
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
-                child: shouldConstrainOverview
-                    ? SizedBox(
-                        height: overviewHeight,
-                        child: const SingleChildScrollView(
-                          child: _InstructorOverview(),
-                        ),
-                      )
-                    : const _InstructorOverview(),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return const [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: _InstructorOverview(),
               ),
-              Expanded(child: screens[selectedIndex]),
-            ],
-          );
+            ),
+          ];
         },
+        body: Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: screens[selectedIndex],
+        ),
       ),
     );
   }
@@ -162,6 +156,14 @@ class InstructorDashboard extends ConsumerWidget {
                 ),
               ),
             ),
+          ),
+        ),
+        DashboardActionButton(
+          icon: Icons.bar_chart_outlined,
+          tooltip: 'Reports & Statistics',
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const InstructorReportsScreen()),
           ),
         ),
         DashboardActionButton(

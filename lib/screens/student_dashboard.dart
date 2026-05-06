@@ -15,6 +15,7 @@ import '../widgets/dashboard_shell.dart';
 
 // Screens
 import '../screens/offline_downloads_screen.dart';
+import '../screens/dashboard_reports_screen.dart';
 import '../screens/student_class_detail_screen.dart';
 import '../screens/lesson_screen.dart';
 
@@ -80,136 +81,152 @@ class StudentDashboard extends ConsumerWidget {
               ref.invalidate(tasksForMyClassesProvider);
               ref.invalidate(mySubmissionsProvider);
             },
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                InsightShell(
-                  title: 'Your academic pulse',
-                  subtitle:
-                      'Track submission timing, pending work, and overdue tasks before they stack up.',
-                  child: Column(
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.all(16),
+                  sliver: SliverList.list(
                     children: [
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
+                      InsightShell(
+                        title: 'Your academic pulse',
+                        subtitle:
+                            'Track submission timing, pending work, and overdue tasks before they stack up.',
+                        child: Column(
                           children: [
-                            StatBadge(
-                              label: 'Classes',
-                              value: '${classes.length}',
-                              tone: kNavy,
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  StatBadge(
+                                    label: 'Classes',
+                                    value: '${classes.length}',
+                                    tone: kNavy,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  StatBadge(
+                                    label: 'Tasks',
+                                    value: '${studentTasks.length}',
+                                    tone: kGold,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  StatBadge(
+                                    label: 'On time',
+                                    value: '$onTimeCount',
+                                    tone: Colors.green.shade700,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  StatBadge(
+                                    label: 'Overdue',
+                                    value: '$overdueCount',
+                                    tone: kMaroon,
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(width: 10),
-                            StatBadge(
-                              label: 'Tasks',
-                              value: '${studentTasks.length}',
-                              tone: kGold,
+                            const SizedBox(height: 18),
+                            InteractiveBarChart(
+                              title: 'Submission status',
+                              data: [
+                                DashboardBarDatum(
+                                  label: 'On time',
+                                  value: onTimeCount,
+                                  color: Colors.green.shade700,
+                                ),
+                                DashboardBarDatum(
+                                  label: 'Late',
+                                  value: lateCount,
+                                  color: Colors.orange.shade800,
+                                ),
+                                DashboardBarDatum(
+                                  label: 'Pending',
+                                  value: pendingCount,
+                                  color: kNavy,
+                                ),
+                                DashboardBarDatum(
+                                  label: 'Overdue',
+                                  value: overdueCount,
+                                  color: kMaroon,
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 10),
-                            StatBadge(
-                              label: 'On time',
-                              value: '$onTimeCount',
-                              tone: Colors.green.shade700,
-                            ),
-                            const SizedBox(width: 10),
-                            StatBadge(
-                              label: 'Overdue',
-                              value: '$overdueCount',
-                              tone: kMaroon,
+                            const SizedBox(height: 18),
+                            StudentTaskStatusBoard(
+                              items: taskStatuses,
+                              emptyText:
+                                  'No active tasks across your enrolled classes yet.',
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 18),
-                      InteractiveBarChart(
-                        title: 'Submission status',
-                        data: [
-                          DashboardBarDatum(
-                            label: 'On time',
-                            value: onTimeCount,
-                            color: Colors.green.shade700,
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: kNavy),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          DashboardBarDatum(
-                            label: 'Late',
-                            value: lateCount,
-                            color: Colors.orange.shade800,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: Colors.white,
+                        ),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LessonScreen(),
                           ),
-                          DashboardBarDatum(
-                            label: 'Pending',
-                            value: pendingCount,
-                            color: kNavy,
-                          ),
-                          DashboardBarDatum(
-                            label: 'Overdue',
-                            value: overdueCount,
-                            color: kMaroon,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      StudentTaskStatusBoard(
-                        items: taskStatuses,
-                        emptyText:
-                            'No active tasks across your enrolled classes yet.',
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: kNavy),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    backgroundColor: Colors.white,
-                  ),
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LessonScreen()),
-                  ),
-                  icon: const Icon(Icons.menu_book_outlined, color: kNavy),
-                  label: const Text(
-                    'Open Curriculum',
-                    style: TextStyle(color: kNavy, fontWeight: FontWeight.w800),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Join class button at top
-                _buildJoinClassButton(context, ref),
-                const SizedBox(height: 16),
-
-                // Section header
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.groups, color: kNavy, size: 16),
-                      const SizedBox(width: 8),
-                      Text(
-                        'MY CLASSES (${classes.length})',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
+                        ),
+                        icon: const Icon(
+                          Icons.menu_book_outlined,
                           color: kNavy,
+                        ),
+                        label: const Text(
+                          'Open Curriculum',
+                          style: TextStyle(
+                            color: kNavy,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildJoinClassButton(context, ref),
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.groups, color: kNavy, size: 16),
+                            const SizedBox(width: 8),
+                            Text(
+                              'MY CLASSES (${classes.length})',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.2,
+                                color: kNavy,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-
-                // Class cards
-                ...classes.map(
-                  (cls) => _ClassCard(
-                    classModel: cls,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            StudentClassDetailScreen(classModel: cls),
-                      ),
-                    ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final cls = classes[index];
+                      return _ClassCard(
+                        classModel: cls,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                StudentClassDetailScreen(classModel: cls),
+                          ),
+                        ),
+                      );
+                    }, childCount: classes.length),
                   ),
                 ),
               ],
@@ -328,6 +345,14 @@ class StudentDashboard extends ConsumerWidget {
           onPressed: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const OfflineDownloadsScreen()),
+          ),
+        ),
+        DashboardActionButton(
+          icon: Icons.bar_chart_outlined,
+          tooltip: 'Reports & Statistics',
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const StudentReportsScreen()),
           ),
         ),
         DashboardActionButton(
