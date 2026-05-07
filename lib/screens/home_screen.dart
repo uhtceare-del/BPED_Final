@@ -32,7 +32,7 @@ class HomeScreen extends StatelessWidget {
           },
         ),
       ],
-      contentAlignment: Alignment.centerLeft,
+      contentAlignment: Alignment.center,
       child: const PublicPortalPanel(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

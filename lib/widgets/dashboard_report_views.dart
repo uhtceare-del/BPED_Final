@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,6 +15,8 @@ import '../providers/class_provider.dart';
 import '../providers/lesson_provider.dart';
 import '../providers/submission_provider.dart';
 import '../providers/task_provider.dart';
+import '../services/csv_export_service.dart';
+import '../services/seed_data.dart';
 import 'dashboard_analytics.dart';
 
 class AdminReportsView extends ConsumerStatefulWidget {
@@ -29,6 +33,8 @@ class AdminReportsView extends ConsumerStatefulWidget {
 
 class _AdminReportsViewState extends ConsumerState<AdminReportsView> {
   int _selectedChart = 0;
+  bool _isExportingUsers = false;
+  bool _isSeedingDemoData = false;
 
   @override
   Widget build(BuildContext context) {
@@ -175,32 +181,93 @@ class _AdminReportsViewState extends ConsumerState<AdminReportsView> {
       padding: widget.padding,
       children: [
         InsightShell(
-          title: 'System-wide reporting',
+          title: 'Admin reports',
           subtitle:
               'Monitor users, class activity, and submission health from one shared reporting layer.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  ChoiceChip(
-                    label: const Text('Population'),
-                    selected: _selectedChart == 0,
-                    onSelected: (_) => setState(() => _selectedChart = 0),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Submissions'),
-                    selected: _selectedChart == 1,
-                    onSelected: (_) => setState(() => _selectedChart = 1),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Backlog'),
-                    selected: _selectedChart == 2,
-                    onSelected: (_) => setState(() => _selectedChart = 2),
-                  ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stackVertically = constraints.maxWidth < 760;
+                  return Flex(
+                    direction: stackVertically
+                        ? Axis.vertical
+                        : Axis.horizontal,
+                    crossAxisAlignment: stackVertically
+                        ? CrossAxisAlignment.start
+                        : CrossAxisAlignment.center,
+                    children: [
+                      if (stackVertically)
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: _buildChartChips(),
+                        )
+                      else
+                        Expanded(
+                          child: Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: _buildChartChips(),
+                          ),
+                        ),
+                      SizedBox(
+                        width: stackVertically ? 0 : 12,
+                        height: stackVertically ? 12 : 0,
+                      ),
+                      if (kDebugMode) ...[
+                        OutlinedButton.icon(
+                          onPressed: _isSeedingDemoData
+                              ? null
+                              : () => _confirmAndSeedDemoData(context),
+                          icon: _isSeedingDemoData
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.dataset_outlined),
+                          label: Text(
+                            _isSeedingDemoData
+                                ? 'Seeding demo data...'
+                                : 'Seed production-like demo',
+                          ),
+                        ),
+                        SizedBox(
+                          width: stackVertically ? 0 : 12,
+                          height: stackVertically ? 12 : 0,
+                        ),
+                      ],
+                      FilledButton.icon(
+                        onPressed: _isExportingUsers
+                            ? null
+                            : () => _exportUsersCsv(context, users),
+                        icon: _isExportingUsers
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.download_outlined),
+                        label: Text(
+                          _isExportingUsers
+                              ? 'Exporting...'
+                              : 'Export users CSV',
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: kNavy,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 18),
               _MetricStrip(
@@ -271,6 +338,128 @@ class _AdminReportsViewState extends ConsumerState<AdminReportsView> {
         ),
       ],
     );
+  }
+
+  Future<void> _exportUsersCsv(
+    BuildContext context,
+    List<Map<String, dynamic>> users,
+  ) async {
+    setState(() => _isExportingUsers = true);
+
+    try {
+      final csv = _buildUsersCsv(users);
+      final stamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .replaceAll('.', '-');
+      final path = await exportCsvFile(
+        fileName: 'bped_users_$stamp.csv',
+        content: csv,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            path == null
+                ? 'User CSV export is not available on this platform.'
+                : 'User CSV created successfully.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('CSV export failed: $error')));
+    } finally {
+      if (mounted) {
+        setState(() => _isExportingUsers = false);
+      }
+    }
+  }
+
+  List<Widget> _buildChartChips() {
+    return [
+      ChoiceChip(
+        label: const Text('Population'),
+        selected: _selectedChart == 0,
+        onSelected: (_) => setState(() => _selectedChart = 0),
+      ),
+      ChoiceChip(
+        label: const Text('Submissions'),
+        selected: _selectedChart == 1,
+        onSelected: (_) => setState(() => _selectedChart = 1),
+      ),
+      ChoiceChip(
+        label: const Text('Backlog'),
+        selected: _selectedChart == 2,
+        onSelected: (_) => setState(() => _selectedChart = 2),
+      ),
+    ];
+  }
+
+  Future<void> _confirmAndSeedDemoData(BuildContext context) async {
+    final shouldSeed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Seed production-style demo data?'),
+          content: const Text(
+            'This replaces only the previously generated demo dataset and then creates 200 users, active classes, lessons, reviewers, tasks, and submissions for report stress testing.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Seed dataset'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldSeed != true) {
+      return;
+    }
+
+    setState(() => _isSeedingDemoData = true);
+
+    try {
+      final result = await seedProductionDataset();
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Seeded ${result.usersCreated} users, ${result.classesCreated} classes, ${result.lessonsCreated} lessons, ${result.tasksCreated} tasks, and ${result.submissionsCreated} submissions.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Demo seed failed: $error')));
+    } finally {
+      if (mounted) {
+        setState(() => _isSeedingDemoData = false);
+      }
+    }
   }
 }
 
@@ -358,7 +547,7 @@ class InstructorReportsView extends ConsumerWidget {
       padding: padding,
       children: [
         InsightShell(
-          title: 'Instruction performance board',
+          title: 'Instructor reports',
           subtitle:
               'Review class performance, submission timing, and completion trends without leaving your dashboard flow.',
           child: Column(
@@ -843,4 +1032,57 @@ String _formatPercent(double value) {
 
 String _formatScore(double value) {
   return value.toStringAsFixed(value % 1 == 0 ? 0 : 1);
+}
+
+String _buildUsersCsv(List<Map<String, dynamic>> users) {
+  const headers = [
+    'ID',
+    'Full Name',
+    'Email',
+    'Role',
+    'Year Level',
+    'Section',
+    'Onboarding Completed',
+    'Created At',
+    'Avatar URL',
+  ];
+
+  final buffer = StringBuffer()..writeln(headers.map(_escapeCsvCell).join(','));
+
+  final sortedUsers = [...users]
+    ..sort(
+      (a, b) => (a['fullName'] ?? a['email']).toString().compareTo(
+        (b['fullName'] ?? b['email']).toString(),
+      ),
+    );
+
+  for (final user in sortedUsers) {
+    final createdAt = switch (user['createdAt']) {
+      Timestamp value => value.toDate().toIso8601String(),
+      DateTime value => value.toIso8601String(),
+      final value? => value.toString(),
+      null => '',
+    };
+
+    buffer.writeln(
+      [
+        user['id'],
+        user['fullName'],
+        user['email'],
+        user['role'],
+        user['yearLevel'],
+        user['section'],
+        user['onboardingCompleted'],
+        createdAt,
+        user['avatarUrl'],
+      ].map(_escapeCsvCell).join(','),
+    );
+  }
+
+  return buffer.toString();
+}
+
+String _escapeCsvCell(Object? value) {
+  final text = (value ?? '').toString().replaceAll('"', '""');
+  return '"$text"';
 }

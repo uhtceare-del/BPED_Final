@@ -121,7 +121,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           onPressed: _openSignUp,
         ),
       ],
-      contentAlignment: Alignment.centerRight,
+      contentAlignment: Alignment.center,
       maxContentWidth: 440,
       child: PublicPortalPanel(
         child: Form(

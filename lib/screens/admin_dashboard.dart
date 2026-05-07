@@ -14,9 +14,7 @@ import '../providers/submission_provider.dart';
 import '../providers/task_provider.dart';
 import '../screens/dashboard_reports_screen.dart';
 import '../screens/trash_screen.dart';
-import '../widgets/dashboard_analytics.dart';
 import '../widgets/dashboard_module.dart';
-import '../widgets/dashboard_report_views.dart';
 import '../widgets/dashboard_shell.dart';
 
 final _adminTabProvider = StateProvider<int>((ref) => 0);
@@ -24,16 +22,14 @@ final _adminTabProvider = StateProvider<int>((ref) => 0);
 class AdminDashboard extends ConsumerWidget {
   const AdminDashboard({super.key});
 
-  static const _labels = ['Classes', 'Reports', 'Users', 'Uploads'];
+  static const _labels = ['Classes', 'Users', 'Uploads'];
   static const _icons = [
     Icons.groups_outlined,
-    Icons.bar_chart_outlined,
     Icons.people_outline,
     Icons.upload_file_outlined,
   ];
   static const _activeIcons = [
     Icons.groups,
-    Icons.bar_chart,
     Icons.people,
     Icons.upload_file,
   ];
@@ -42,12 +38,12 @@ class AdminDashboard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tab = ref.watch(_adminTabProvider);
     final userAsync = ref.watch(currentUserProvider);
-    final screens = const [
+    const screens = [
       _AdminClassesTab(),
-      AdminReportsView(),
       _AdminUsersTab(),
       _AdminUploadsTab(),
     ];
+    final selectedTab = tab >= screens.length ? 0 : tab;
     final navItems = List.generate(
       _labels.length,
       (i) => DashboardNavItem(
@@ -64,12 +60,12 @@ class AdminDashboard extends ConsumerWidget {
         error: (error, stackTrace) => const _AdminHeader(user: null),
       ),
       navigationItems: navItems,
-      selectedIndex: tab,
+      selectedIndex: selectedTab,
       onDestinationSelected: (i) =>
           ref.read(_adminTabProvider.notifier).state = i,
       body: Padding(
         padding: const EdgeInsets.only(bottom: 12),
-        child: screens[tab],
+        child: screens[selectedTab],
       ),
     );
   }
@@ -505,232 +501,6 @@ class _AdminClassCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _AdminReportsTab extends ConsumerStatefulWidget {
-  const _AdminReportsTab();
-
-  @override
-  ConsumerState<_AdminReportsTab> createState() => _AdminReportsTabState();
-}
-
-class _AdminReportsTabState extends ConsumerState<_AdminReportsTab> {
-  int _selectedChart = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    final usersAsync = ref.watch(adminUsersProvider);
-    final classesAsync = ref.watch(allClassesProvider);
-    final tasksAsync = ref.watch(allTasksProvider);
-    final submissionsAsync = ref.watch(submissionProvider);
-
-    if (usersAsync.isLoading ||
-        classesAsync.isLoading ||
-        tasksAsync.isLoading ||
-        submissionsAsync.isLoading) {
-      return const Center(child: CircularProgressIndicator(color: kNavy));
-    }
-
-    if (usersAsync.hasError) {
-      return Center(child: Text('Error: ${usersAsync.error}'));
-    }
-    if (classesAsync.hasError) {
-      return Center(child: Text('Error: ${classesAsync.error}'));
-    }
-    if (tasksAsync.hasError) {
-      return Center(child: Text('Error: ${tasksAsync.error}'));
-    }
-    if (submissionsAsync.hasError) {
-      return Center(child: Text('Error: ${submissionsAsync.error}'));
-    }
-
-    final users = usersAsync.value ?? const <Map<String, dynamic>>[];
-    final classes = classesAsync.value ?? const <ClassModel>[];
-    final tasks = tasksAsync.value ?? const <TaskModel>[];
-    final submissions = submissionsAsync.value ?? const <SubmissionModel>[];
-    final classesById = {for (final cls in classes) cls.id: cls};
-    final progressItems = buildTaskProgressData(
-      tasks: tasks,
-      submissions: submissions,
-      classesById: classesById,
-    );
-
-    final roleCounts = <String, int>{'student': 0, 'instructor': 0, 'admin': 0};
-    for (final user in users) {
-      final role = (user['role'] ?? '').toString().toLowerCase();
-      if (roleCounts.containsKey(role)) {
-        roleCounts[role] = roleCounts[role]! + 1;
-      }
-    }
-
-    final totalOnTime = progressItems.fold<int>(
-      0,
-      (total, item) => total + item.onTimeCount,
-    );
-    final totalLate = progressItems.fold<int>(
-      0,
-      (total, item) => total + item.lateCount,
-    );
-    final totalPending = progressItems.fold<int>(
-      0,
-      (total, item) => total + item.pendingCount,
-    );
-
-    final chartSets = [
-      <DashboardBarDatum>[
-        DashboardBarDatum(
-          label: 'Students',
-          value: roleCounts['student'] ?? 0,
-          color: kNavy,
-        ),
-        DashboardBarDatum(
-          label: 'Instructors',
-          value: roleCounts['instructor'] ?? 0,
-          color: kGold,
-        ),
-        DashboardBarDatum(
-          label: 'Admins',
-          value: roleCounts['admin'] ?? 0,
-          color: kMaroon,
-        ),
-        DashboardBarDatum(
-          label: 'Classes',
-          value: classes.length,
-          color: Colors.teal.shade700,
-        ),
-      ],
-      <DashboardBarDatum>[
-        DashboardBarDatum(label: 'Tasks', value: tasks.length, color: kNavy),
-        DashboardBarDatum(
-          label: 'Submitted',
-          value: submissions.length,
-          color: Colors.green.shade700,
-        ),
-        DashboardBarDatum(
-          label: 'On time',
-          value: totalOnTime,
-          color: Colors.lightGreen.shade700,
-        ),
-        DashboardBarDatum(
-          label: 'Late',
-          value: totalLate,
-          color: Colors.orange.shade800,
-        ),
-      ],
-      <DashboardBarDatum>[
-        DashboardBarDatum(
-          label: 'Pending',
-          value: totalPending,
-          color: kMaroon,
-        ),
-        DashboardBarDatum(
-          label: 'Active tasks',
-          value: progressItems.length,
-          color: kNavy,
-        ),
-        DashboardBarDatum(
-          label: 'Classes live',
-          value: classes.length,
-          color: Colors.indigo.shade700,
-        ),
-        DashboardBarDatum(
-          label: 'Uploads',
-          value: submissions.length,
-          color: Colors.cyan.shade700,
-        ),
-      ],
-    ];
-
-    final chartTitles = [
-      'Population snapshot',
-      'Submission timing',
-      'Workload pressure',
-    ];
-
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 24),
-      children: [
-        InsightShell(
-          title: 'Department pulse',
-          subtitle:
-              'Interactive reporting for enrollment, submissions, and task completion.',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  ChoiceChip(
-                    label: const Text('Population'),
-                    selected: _selectedChart == 0,
-                    onSelected: (_) => setState(() => _selectedChart = 0),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Submissions'),
-                    selected: _selectedChart == 1,
-                    onSelected: (_) => setState(() => _selectedChart = 1),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Backlog'),
-                    selected: _selectedChart == 2,
-                    onSelected: (_) => setState(() => _selectedChart = 2),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    StatBadge(
-                      label: 'Active users',
-                      value: '${users.length}',
-                      tone: kNavy,
-                    ),
-                    const SizedBox(width: 10),
-                    StatBadge(
-                      label: 'Classes',
-                      value: '${classes.length}',
-                      tone: Colors.teal.shade700,
-                    ),
-                    const SizedBox(width: 10),
-                    StatBadge(
-                      label: 'Tasks',
-                      value: '${tasks.length}',
-                      tone: kGold,
-                    ),
-                    const SizedBox(width: 10),
-                    StatBadge(
-                      label: 'Late submissions',
-                      value: '$totalLate',
-                      tone: kMaroon,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              InteractiveBarChart(
-                title: chartTitles[_selectedChart],
-                data: chartSets[_selectedChart],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-        const Text(
-          'Task Progress Spotlight',
-          style: TextStyle(
-            color: kNavy,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 10),
-        TaskProgressBoard(items: progressItems),
-      ],
     );
   }
 }

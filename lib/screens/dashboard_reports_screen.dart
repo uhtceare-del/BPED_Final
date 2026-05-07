@@ -10,7 +10,7 @@ class AdminReportsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const _ReportsScreenShell(
-      title: 'Reports & Statistics',
+      title: 'Admin Reports',
       subtitle:
           'System-wide enrollment, submissions, and activity metrics for the BPED e-learning platform.',
       child: AdminReportsView(),
@@ -24,7 +24,7 @@ class InstructorReportsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const _ReportsScreenShell(
-      title: 'Reports & Statistics',
+      title: 'Instructor Reports',
       subtitle:
           'Class performance, task completion, and student progress insights for your sections.',
       child: InstructorReportsView(),
@@ -38,7 +38,7 @@ class StudentReportsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const _ReportsScreenShell(
-      title: 'Reports & Statistics',
+      title: 'Student Reports',
       subtitle:
           'Personal progress, task status, scores, and curriculum coverage across your enrolled classes.',
       child: StudentReportsView(),

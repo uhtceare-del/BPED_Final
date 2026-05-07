@@ -2,13 +2,6 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
-import '../providers/class_provider.dart';
-import '../providers/submission_provider.dart';
-import '../providers/task_provider.dart';
-import '../models/class_model.dart';
-import '../models/submission_model.dart';
-import '../models/task_model.dart';
-import '../widgets/dashboard_analytics.dart';
 import '../widgets/dashboard_shell.dart';
 import 'dashboard_reports_screen.dart';
 import 'task_screen.dart';
@@ -84,21 +77,9 @@ class InstructorDashboard extends ConsumerWidget {
       selectedIndex: selectedIndex,
       onDestinationSelected: (i) =>
           ref.read(selectedModuleProvider.notifier).state = i,
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return const [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.only(bottom: 16),
-                child: _InstructorOverview(),
-              ),
-            ),
-          ];
-        },
-        body: Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: screens[selectedIndex],
-        ),
+      body: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: screens[selectedIndex],
       ),
     );
   }
@@ -290,135 +271,6 @@ class InstructorDashboard extends ConsumerWidget {
               'YES, LOGOUT',
               style: TextStyle(color: Colors.white),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InstructorOverview extends ConsumerWidget {
-  const _InstructorOverview();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider).value;
-    final classesAsync = ref.watch(instructorClassesProvider);
-    final tasksAsync = ref.watch(instructorTasksProvider);
-    final submissionsAsync = ref.watch(securedSubmissionsProvider);
-
-    if (user == null ||
-        classesAsync.isLoading ||
-        tasksAsync.isLoading ||
-        submissionsAsync.isLoading) {
-      return const SizedBox(
-        height: 160,
-        child: Center(child: CircularProgressIndicator(color: kNavy)),
-      );
-    }
-
-    if (classesAsync.hasError) {
-      return Text('Error: ${classesAsync.error}');
-    }
-    if (tasksAsync.hasError) {
-      return Text('Error: ${tasksAsync.error}');
-    }
-    if (submissionsAsync.hasError) {
-      return Text('Error: ${submissionsAsync.error}');
-    }
-
-    final classes = classesAsync.value ?? const <ClassModel>[];
-    final classIds = classes.map((cls) => cls.id).toSet();
-    final tasks = (tasksAsync.value ?? const <TaskModel>[])
-        .where((task) => classIds.contains(task.classId))
-        .toList();
-    final submissions = submissionsAsync.value ?? const <SubmissionModel>[];
-    final classesById = {for (final cls in classes) cls.id: cls};
-    final progressItems = buildTaskProgressData(
-      tasks: tasks,
-      submissions: submissions,
-      classesById: classesById,
-    );
-
-    final totalStudents = classes.fold<int>(
-      0,
-      (sum, cls) => sum + cls.enrolledStudentIds.length,
-    );
-    final totalOnTime = progressItems.fold<int>(
-      0,
-      (sum, item) => sum + item.onTimeCount,
-    );
-    final totalLate = progressItems.fold<int>(
-      0,
-      (sum, item) => sum + item.lateCount,
-    );
-    final totalPending = progressItems.fold<int>(
-      0,
-      (sum, item) => sum + item.pendingCount,
-    );
-
-    return InsightShell(
-      title: 'Instruction command center',
-      subtitle:
-          'Monitor task completion, timing, and class workload at a glance.',
-      child: Column(
-        children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                StatBadge(
-                  label: 'Classes',
-                  value: '${classes.length}',
-                  tone: kNavy,
-                ),
-                const SizedBox(width: 10),
-                StatBadge(
-                  label: 'Students',
-                  value: '$totalStudents',
-                  tone: Colors.teal.shade700,
-                ),
-                const SizedBox(width: 10),
-                StatBadge(
-                  label: 'Tasks',
-                  value: '${tasks.length}',
-                  tone: kGold,
-                ),
-                const SizedBox(width: 10),
-                StatBadge(label: 'Late', value: '$totalLate', tone: kMaroon),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          InteractiveBarChart(
-            title: 'Submission status by task portfolio',
-            data: [
-              DashboardBarDatum(
-                label: 'On time',
-                value: totalOnTime,
-                color: Colors.green.shade700,
-              ),
-              DashboardBarDatum(
-                label: 'Late',
-                value: totalLate,
-                color: Colors.orange.shade800,
-              ),
-              DashboardBarDatum(
-                label: 'Pending',
-                value: totalPending,
-                color: kMaroon,
-              ),
-              DashboardBarDatum(
-                label: 'Tasks',
-                value: tasks.length,
-                color: kNavy,
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          TaskProgressBoard(
-            items: progressItems,
-            emptyText: 'Create a task to start tracking class progress.',
           ),
         ],
       ),
