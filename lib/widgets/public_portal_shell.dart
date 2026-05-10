@@ -53,8 +53,7 @@ class PublicPortalScaffold extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        _BrandBadge(onTap: onBrandTap),
-                        const Spacer(),
+                        Expanded(child: _BrandBadge(onTap: onBrandTap)),
                         Wrap(spacing: 8, runSpacing: 8, children: actions),
                       ],
                     ),
@@ -98,14 +97,20 @@ class PublicPortalPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width >= 900;
     return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: kNavy.withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: kNavy.withValues(alpha: 0.8)),
+      margin: isWide ? EdgeInsets.zero : const EdgeInsets.all(12),
+      child: Container(
+        padding: isWide
+            ? const EdgeInsets.all(24)
+            : const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        decoration: BoxDecoration(
+          color: kNavy.withValues(alpha: 0.8),
+          borderRadius: BorderRadius.circular(isWide ? 28 : 16),
+          border: Border.all(color: kNavy.withValues(alpha: 0.8)),
+        ),
+        child: child,
       ),
-      child: child,
     );
   }
 }
@@ -209,6 +214,7 @@ InputDecoration publicPortalInputDecoration({
     suffixIcon: suffixIcon,
     filled: true,
     fillColor: Colors.white.withValues(alpha: 0.06),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
       borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.16)),
@@ -251,27 +257,34 @@ class _BrandBadge extends StatelessWidget {
         children: [
           Image.asset('assets/lnu.png', height: 38, width: 38),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'BPED MANAGEMENT SYSTEM',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: isWide ? 14 : 12,
-                  letterSpacing: 0.6,
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'BPED MANAGEMENT SYSTEM',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: isWide ? 14 : 12,
+                    letterSpacing: 0.6,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
-              ),
-              Text(
-                'Leyte Normal University',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.82),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
+                Text(
+                  'Leyte Normal University',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.82),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

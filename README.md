@@ -12,8 +12,15 @@ Flutter application for the LNU BPED management workflow. It supports:
 
 1. Install Flutter and project dependencies with `flutter pub get`.
 2. Provide Firebase platform configuration files for the target platforms.
-3. Update `lib/config/local_config.dart` or pass `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
-4. Optionally pass `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_ID`, and `EMAILJS_PUBLIC_KEY` if enrollment emails should be sent.
+3. Copy `.env.example` to `.env`.
+4. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `.env`.
+5. Optionally set `ADMIN_EMAIL`, `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_ID`, and `EMAILJS_PUBLIC_KEY` in `.env`.
+
+## Runtime Config
+
+- The app uses `.env` as the single client configuration source.
+- `--dart-define` is no longer used for app runtime configuration.
+- `.env` is bundled as a Flutter asset, so create it before `flutter run`, `flutter build`, or Docker/compose builds.
 
 ## Notes
 

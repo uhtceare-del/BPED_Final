@@ -7,7 +7,7 @@ import '../models/submission_model.dart';
 import '../providers/submission_provider.dart';
 import '../providers/auth_provider.dart';
 import '../constants/app_colors.dart';
-import '../providers/cloudinary_provider.dart'; // UNCOMMENTED
+import '../providers/supabase_storage_provider.dart';
 
 class StudentTaskDetailScreen extends ConsumerStatefulWidget {
   final TaskModel task;
@@ -34,19 +34,18 @@ class _StudentTaskDetailScreenState
       setState(() => _isUploading = true);
 
       try {
-        // 2. Upload to Cloudinary using Web or Mobile logic
-        String? uploadedUrl;
+        String uploadedUrl;
         if (kIsWeb && file.bytes != null) {
           uploadedUrl = await ref
-              .read(cloudinaryProvider)
+              .read(supabaseStorageProvider)
               .uploadFileBytes(file.bytes!, file.name);
         } else if (file.path != null) {
           uploadedUrl = await ref
-              .read(cloudinaryProvider)
+              .read(supabaseStorageProvider)
               .uploadFile(file.path!);
+        } else {
+          throw Exception('No file payload was available for upload.');
         }
-
-        if (uploadedUrl == null) throw Exception("Upload failed");
 
         // 3. Save Submission to Firestore with the Master Key
         final currentUser = ref.read(currentUserProvider).value;
@@ -65,7 +64,7 @@ class _StudentTaskDetailScreenState
 
         await ref
             .read(submissionRepositoryProvider)
-            .createSubmission(submission);
+            .createSubmission(submission, currentUserId: currentUser.uid);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -90,7 +89,6 @@ class _StudentTaskDetailScreenState
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(

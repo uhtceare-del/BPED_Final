@@ -162,9 +162,25 @@ class SubmissionScreen extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () async {
+              final parsedGrade = num.tryParse(gradeController.text.trim());
+              final instructorRole =
+                  ref.read(currentUserProvider).value?.role ?? '';
+              if (parsedGrade == null) {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('Enter a numeric grade between 0 and 100.'),
+                  ),
+                );
+                return;
+              }
+
               await ref
                   .read(submissionRepositoryProvider)
-                  .updateGrade(submission.id, gradeController.text);
+                  .updateGrade(
+                    submission.id,
+                    parsedGrade,
+                    instructorRole: instructorRole,
+                  );
               navigator.pop();
               messenger.showSnackBar(
                 const SnackBar(content: Text('Grade saved successfully.')),

@@ -4,72 +4,25 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../models/user_model.dart';
 import 'package:flutter/foundation.dart';
 
-// ── Providers ─────────────────────────────────────────────────────────────────
+import '../config/local_config.dart';
+import '../models/user_model.dart';
+import '../core/auth_guard.dart';
+import '../services/auth_service.dart';
 
-final firebaseAuthProvider = Provider<FirebaseAuth>(
-  (ref) => FirebaseAuth.instance,
-);
+// ── Providers ─────────────────────────────────────────────────────────────────
+export '../core/auth_guard.dart';
 
 final firestoreProvider = Provider<FirebaseFirestore>(
   (ref) => FirebaseFirestore.instance,
 );
 
-const bool kDevAdminEnabled = bool.fromEnvironment('DEV_ADMIN_ENABLED');
-const String kDevAdminEmail = 'admin.bped.dev@gmail.com';
-const String kDevAdminPassword = 'Admin123!';
-
-final signOutInProgressProvider = StateProvider<bool>((ref) => false);
+final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
 final authStateProvider = StreamProvider<User?>((ref) {
   return ref.watch(firebaseAuthProvider).authStateChanges();
 });
-
-bool shouldIgnoreAuthTransitionError(Ref ref, Object error) {
-  if (error is! FirebaseException) {
-    return false;
-  }
-
-  if (error.plugin != 'cloud_firestore' || error.code != 'permission-denied') {
-    return false;
-  }
-
-  return ref.read(signOutInProgressProvider) ||
-      ref.read(firebaseAuthProvider).currentUser == null;
-}
-
-Stream<T> guardAuthTransitionStream<T>(
-  Ref ref,
-  Stream<T> stream, {
-  required T fallbackValue,
-}) async* {
-  try {
-    yield* stream;
-  } catch (error) {
-    if (shouldIgnoreAuthTransitionError(ref, error)) {
-      yield fallbackValue;
-      return;
-    }
-    rethrow;
-  }
-}
-
-Future<T> guardAuthTransitionFuture<T>(
-  Ref ref,
-  Future<T> Function() action, {
-  required T fallbackValue,
-}) async {
-  try {
-    return await action();
-  } catch (error) {
-    if (shouldIgnoreAuthTransitionError(ref, error)) {
-      return fallbackValue;
-    }
-    rethrow;
-  }
-}
 
 enum AuthBootstrapStatus {
   signedOut,
@@ -121,6 +74,45 @@ Future<void> _ensureBootstrapUserDoc(
   });
 }
 
+bool _isConfiguredAdminEmail(String? email) {
+  final normalizedAdminEmail = LocalConfig.adminEmail.trim().toLowerCase();
+  final normalizedEmail = email?.trim().toLowerCase() ?? '';
+  return normalizedAdminEmail.isNotEmpty &&
+      normalizedEmail == normalizedAdminEmail;
+}
+
+Future<void> _syncConfiguredAdminProfile(
+  FirebaseFirestore firestore,
+  User authUser,
+) async {
+  if (!_isConfiguredAdminEmail(authUser.email)) {
+    return;
+  }
+
+  final payload = <String, dynamic>{
+    'email': authUser.email ?? LocalConfig.adminEmail,
+    'role': 'admin',
+    'onboardingCompleted': true,
+    'isDeleted': false,
+    'isDisabled': false,
+  };
+
+  final displayName = authUser.displayName?.trim() ?? '';
+  if (displayName.isNotEmpty) {
+    payload['fullName'] = displayName;
+  }
+
+  final photoUrl = authUser.photoURL?.trim() ?? '';
+  if (photoUrl.isNotEmpty) {
+    payload['avatarUrl'] = photoUrl;
+  }
+
+  await firestore
+      .collection('users')
+      .doc(authUser.uid)
+      .set(payload, SetOptions(merge: true));
+}
+
 final currentUserProvider = StreamProvider<AppUser?>((ref) {
   if (ref.watch(signOutInProgressProvider)) {
     return Stream.value(null);
@@ -164,6 +156,7 @@ final authBootstrapProvider = StreamProvider<AuthBootstrapState>((ref) async* {
     yield const AuthBootstrapState.loadingProfile();
     final bootstrapReady = await guardAuthTransitionFuture(ref, () async {
       await _ensureBootstrapUserDoc(firestore, authUser);
+      await _syncConfiguredAdminProfile(firestore, authUser);
       return true;
     }, fallbackValue: false);
     if (!bootstrapReady) {
@@ -357,6 +350,7 @@ class AuthRepository {
       if (uid == null) return GoogleSignInResult.error;
 
       await _ensureBootstrapUserDoc(firestore, credential.user!);
+      await _syncConfiguredAdminProfile(firestore, credential.user!);
 
       final doc = await firestore.collection('users').doc(uid).get();
       final data = doc.data();
@@ -389,96 +383,13 @@ class AuthRepository {
 
   Future<UserCredential> signIn(String email, String password) async {
     try {
-      // Dev-only admin shortcut. Excluded from release/profile builds and
-      // requires an explicit --dart-define opt-in even in debug.
-      if (kDebugMode &&
-          kDevAdminEnabled &&
-          email.toLowerCase().trim() == 'admin' &&
-          password == 'admin') {
-        try {
-          // Try to sign in existing admin user
-          final cred = await auth.signInWithEmailAndPassword(
-            email: kDevAdminEmail,
-            password: kDevAdminPassword,
-          );
-
-          // Ensure admin Firestore doc has correct role
-          final userDocRef = firestore.collection('users').doc(cred.user!.uid);
-          await userDocRef.update({'role': 'admin'}).catchError((_) async {
-            // If update fails, doc might not exist - create it
-            await userDocRef.set({
-              'email': kDevAdminEmail,
-              'fullName': 'Admin',
-              'role': 'admin',
-              'avatarUrl': '',
-              'yearLevel': '',
-              'section': '',
-              'onboardingCompleted': true,
-              'createdAt': FieldValue.serverTimestamp(),
-              'isDeleted': false,
-              'isDisabled': false,
-            });
-          });
-
-          await _ensureUserIsActive(cred);
-          return cred;
-        } on FirebaseAuthException catch (e) {
-          if (e.code == 'user-not-found' ||
-              e.code == 'invalid-credential' ||
-              e.code == 'invalid-login-credentials') {
-            // Create admin user if it doesn't exist
-            UserCredential cred;
-            try {
-              cred = await auth.createUserWithEmailAndPassword(
-                email: kDevAdminEmail,
-                password: kDevAdminPassword,
-              );
-            } on FirebaseAuthException catch (createError) {
-              if (createError.code == 'email-already-in-use') {
-                cred = await auth.signInWithEmailAndPassword(
-                  email: kDevAdminEmail,
-                  password: kDevAdminPassword,
-                );
-              } else {
-                rethrow;
-              }
-            }
-
-            // Send verification email (optional for testing)
-            try {
-              await cred.user?.sendEmailVerification();
-            } catch (_) {
-              // Silently fail if email can't be sent (offline, etc)
-            }
-
-            // Create admin Firestore doc with role='admin' and onboardingCompleted=true
-            await firestore.collection('users').doc(cred.user!.uid).set({
-              'email': kDevAdminEmail,
-              'fullName': 'Admin',
-              'role': 'admin',
-              'avatarUrl': '',
-              'yearLevel': '',
-              'section': '',
-              'onboardingCompleted': true,
-              'createdAt': FieldValue.serverTimestamp(),
-              'isDeleted': false,
-              'isDisabled': false,
-            });
-
-            await _ensureUserIsActive(cred);
-            return cred;
-          }
-          rethrow;
-        }
-      }
-
-      // ──── Normal email/password sign-in ────
       final cred = await auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       await _ensureBootstrapUserDoc(firestore, cred.user!);
+      await _syncConfiguredAdminProfile(firestore, cred.user!);
 
       await _ensureUserIsActive(cred);
       return cred;

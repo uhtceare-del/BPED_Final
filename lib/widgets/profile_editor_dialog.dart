@@ -22,7 +22,8 @@ class ProfileEditorDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<ProfileEditorDialog> createState() => _ProfileEditorDialogState();
+  ConsumerState<ProfileEditorDialog> createState() =>
+      _ProfileEditorDialogState();
 }
 
 class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
@@ -78,18 +79,18 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
     try {
       String avatarUrl = widget.user.avatarUrl;
       if (_selectedImageBytes != null && _selectedImageName != null) {
-        final uploaded = await ref
+        avatarUrl = await ref
             .read(imageUploadProvider.notifier)
             .uploadBytes(_selectedImageBytes!, filename: _selectedImageName!);
-        if (uploaded != null) avatarUrl = uploaded;
       } else if (_selectedImageFile != null) {
-        final uploaded = await ref
+        avatarUrl = await ref
             .read(imageUploadProvider.notifier)
             .upload(_selectedImageFile!);
-        if (uploaded != null) avatarUrl = uploaded;
       }
 
-      await ref.read(authControllerProvider).updateUserProfile(
+      await ref
+          .read(authControllerProvider)
+          .updateUserProfile(
             uid: widget.user.uid,
             fullName: fullName,
             avatarUrl: avatarUrl,
@@ -123,7 +124,8 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
     if (_selectedImageBytes != null) {
       return MemoryImage(_selectedImageBytes!);
     }
-    if (widget.user.avatarUrl.trim().isNotEmpty && widget.user.avatarUrl != 'null') {
+    if (widget.user.avatarUrl.trim().isNotEmpty &&
+        widget.user.avatarUrl != 'null') {
       return NetworkImage(widget.user.avatarUrl);
     }
     return null;
@@ -179,7 +181,11 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
                           onTap: _isSaving ? null : _pickAvatar,
                           child: const Padding(
                             padding: EdgeInsets.all(8),
-                            child: Icon(Icons.camera_alt, color: Colors.white, size: 18),
+                            child: Icon(
+                              Icons.camera_alt,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                           ),
                         ),
                       ),
@@ -192,7 +198,10 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
                 Center(
                   child: Text(
                     _selectedImageName!,
-                    style: TextStyle(color: Colors.blueGrey.shade700, fontSize: 12),
+                    style: TextStyle(
+                      color: Colors.blueGrey.shade700,
+                      fontSize: 12,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -230,14 +239,14 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                    onPressed: _isSaving
+                        ? null
+                        : () => Navigator.of(context).pop(),
                     child: const Text('Cancel'),
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: kNavy,
-                    ),
+                    style: FilledButton.styleFrom(backgroundColor: kNavy),
                     onPressed: _isSaving ? null : _saveProfile,
                     child: _isSaving
                         ? const SizedBox(

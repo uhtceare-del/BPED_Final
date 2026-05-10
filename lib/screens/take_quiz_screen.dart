@@ -64,7 +64,9 @@ class _TakeQuizScreenState extends ConsumerState<TakeQuizScreen> {
       );
 
       // 4. Save to Firestore
-      await ref.read(submissionRepositoryProvider).createSubmission(submission);
+      await ref
+          .read(submissionRepositoryProvider)
+          .createSubmission(submission, currentUserId: user.uid);
 
       if (mounted) {
         _showResultsDialog(correctAnswers, questions.length, finalGrade);
@@ -188,15 +190,18 @@ class _TakeQuizScreenState extends ConsumerState<TakeQuizScreen> {
                                 );
                               },
                               child: Column(
-                                children: List.generate(question.choices.length, (
-                                  choiceIndex,
-                                ) {
-                                  return RadioListTile<int>(
-                                    title: Text(question.choices[choiceIndex]),
-                                    value: choiceIndex,
-                                    activeColor: const Color(0xFF002147),
-                                  );
-                                }),
+                                children: List.generate(
+                                  question.choices.length,
+                                  (choiceIndex) {
+                                    return RadioListTile<int>(
+                                      title: Text(
+                                        question.choices[choiceIndex],
+                                      ),
+                                      value: choiceIndex,
+                                      activeColor: const Color(0xFF002147),
+                                    );
+                                  },
+                                ),
                               ),
                             ),
                           ],

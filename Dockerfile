@@ -75,18 +75,9 @@ CMD ["flutter", "analyze"]
 
 FROM tooling AS web-build
 
-ARG SUPABASE_URL=
-ARG SUPABASE_ANON_KEY=
-ARG EMAILJS_SERVICE_ID=
-ARG EMAILJS_TEMPLATE_ID=
-ARG EMAILJS_PUBLIC_KEY=
+RUN test -f .env || (echo "Missing .env. Copy .env.example to .env before building." && exit 1)
 
-RUN flutter build web --release \
-    --dart-define=SUPABASE_URL=${SUPABASE_URL} \
-    --dart-define=SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY} \
-    --dart-define=EMAILJS_SERVICE_ID=${EMAILJS_SERVICE_ID} \
-    --dart-define=EMAILJS_TEMPLATE_ID=${EMAILJS_TEMPLATE_ID} \
-    --dart-define=EMAILJS_PUBLIC_KEY=${EMAILJS_PUBLIC_KEY}
+RUN flutter build web --release
 
 # ============================================================
 # Stage 3: Production runtime for web bundle

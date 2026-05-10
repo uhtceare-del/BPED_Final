@@ -10,8 +10,8 @@ import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import '../providers/reviewer_provider.dart';
 import '../providers/class_provider.dart';
-import '../providers/cloudinary_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/supabase_storage_provider.dart';
 import '../models/reviewer_model.dart';
 import '../services/soft_delete_service.dart';
 import '../widgets/pdf_viewer_widget.dart';
@@ -421,24 +421,18 @@ class _UploadReviewerSheetState extends ConsumerState<_UploadReviewerSheet> {
     setState(() => _isUploading = true);
 
     try {
-      final cloudinary = ref.read(cloudinaryProvider);
+      final storageService = ref.read(supabaseStorageProvider);
       final instructorId =
           ref.read(authControllerProvider).currentUser?.uid ?? '';
 
-      String? url;
+      String url;
       if (kIsWeb) {
-        url = await cloudinary.uploadFileBytes(
+        url = await storageService.uploadFileBytes(
           _fileBytes!,
           _fileName ?? 'reviewer.pdf',
         );
       } else {
-        url = await cloudinary.uploadFile(_filePath!);
-      }
-
-      if (url == null || url.isEmpty) {
-        throw Exception(
-          'Cloudinary returned no URL. Check your upload preset allows raw files.',
-        );
+        url = await storageService.uploadFile(_filePath!);
       }
 
       final reviewer = ReviewerModel(

@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../config/local_config.dart';
 import 'auth_gate.dart';
 import 'home_screen.dart';
 import 'signup_screen.dart';
@@ -151,21 +151,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 controller: _emailController,
                 style: const TextStyle(color: Colors.white),
                 decoration: publicPortalInputDecoration(
-                  label: 'Gmail Address',
+                  label: 'Email Address',
                   icon: Icons.email_outlined,
                 ),
-                validator: (v) {
-                  if (kDebugMode &&
-                      kDevAdminEnabled &&
-                      v?.toLowerCase().trim() == 'admin') {
+                validator: (value) {
+                  final email = value?.trim() ?? '';
+                  if (email.isEmpty) {
+                    return 'Email required';
+                  }
+
+                  final isValidEmail = RegExp(
+                    r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                  ).hasMatch(email);
+                  if (!isValidEmail) {
+                    return 'Must be a valid email address';
+                  }
+
+                  final isConfiguredAdmin =
+                      email.toLowerCase() ==
+                      LocalConfig.adminEmail.toLowerCase();
+                  if (isConfiguredAdmin ||
+                      email.toLowerCase().endsWith('@gmail.com')) {
                     return null;
                   }
 
-                  return !RegExp(
-                        r'^[a-zA-Z0-9._%+-]+@gmail\.com$',
-                      ).hasMatch(v ?? '')
-                      ? 'Must be a valid @gmail.com'
-                      : null;
+                  return 'Must be your configured admin email or a valid @gmail.com';
                 },
               ),
               const SizedBox(height: 18),

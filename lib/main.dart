@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'config/local_config.dart';
 import 'constants/app_colors.dart';
 import 'firebase_options.dart';
 
@@ -13,12 +15,17 @@ import 'screens/home_screen.dart';
 
 // Providers
 import 'widgets/auth_bootstrap_router.dart';
+import 'widgets/error_boundary.dart';
 
 void main() async {
   // 1. Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Initialize Firebase with platform-specific options
+  // 2. Load and validate environment variables
+  await dotenv.load(fileName: '.env');
+  LocalConfig.initialize();
+
+  // 3. Initialize Firebase with platform-specific options
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   if (!kIsWeb) {
@@ -162,7 +169,13 @@ class MyApp extends StatelessWidget {
         ),
       ),
       // The AuthWrapper determines the starting screen dynamically
-      home: const AuthWrapper(),
+      home: ErrorBoundary(
+        onError: (error) {
+          // Log errors in production
+          debugPrint('Global error caught: $error');
+        },
+        child: const AuthWrapper(),
+      ),
     );
   }
 }

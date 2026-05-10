@@ -158,6 +158,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   color: Colors.white.withValues(alpha: 0.84),
                   height: 1.5,
                   fontWeight: FontWeight.w500,
+                  fontSize: 13,
                 ),
               ),
               const SizedBox(height: 24),
@@ -177,7 +178,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               const SizedBox(height: 18),
               _buildTextField(
                 _emailController,
-                'Gmail Address',
+                'Email Address',
                 Icons.email_outlined,
               ),
               const SizedBox(height: 16),
@@ -220,7 +221,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       ),
     ),
     style: OutlinedButton.styleFrom(
-      minimumSize: const Size.fromHeight(54),
+      minimumSize: const Size(double.infinity, 54),
       padding: const EdgeInsets.symmetric(vertical: 14),
       foregroundColor: Colors.white,
       backgroundColor: Colors.white.withValues(alpha: 0.05),
@@ -237,29 +238,30 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }) => TextFormField(
     controller: controller,
     obscureText: obscure,
-    style: const TextStyle(color: Colors.white),
+    style: const TextStyle(color: Colors.white, fontSize: 14),
     decoration: publicPortalInputDecoration(label: label, icon: icon),
   );
 
-  Widget _buildPrimaryButton(String text, VoidCallback onPressed) => SizedBox(
-    height: 55,
-    child: FilledButton(
-      onPressed: _isLoading ? null : onPressed,
-      style: FilledButton.styleFrom(
-        backgroundColor: kMaroon,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-      child: _isLoading
-          ? const SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.4,
-                color: Colors.white,
-              ),
-            )
-          : Text(text, style: const TextStyle(fontWeight: FontWeight.w900)),
-    ),
-  );
+  Widget _buildPrimaryButton(String text, VoidCallback onPressed) =>
+      FilledButton(
+        onPressed: _isLoading ? null : onPressed,
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(double.infinity, 55),
+          backgroundColor: kMaroon,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: _isLoading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  color: Colors.white,
+                ),
+              )
+            : Text(text, style: const TextStyle(fontWeight: FontWeight.w900)),
+      );
 }

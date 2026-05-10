@@ -1,13 +1,29 @@
+import 'local_config.dart';
+
 class IntegrationConfig {
-  static const String emailJsServiceId = String.fromEnvironment(
-    'EMAILJS_SERVICE_ID',
-  );
-  static const String emailJsTemplateId = String.fromEnvironment(
-    'EMAILJS_TEMPLATE_ID',
-  );
-  static const String emailJsPublicKey = String.fromEnvironment(
-    'EMAILJS_PUBLIC_KEY',
-  );
+  static String get emailJsServiceId {
+    try {
+      return LocalConfig.emailJsServiceId;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  static String get emailJsTemplateId {
+    try {
+      return LocalConfig.emailJsTemplateId;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  static String get emailJsPublicKey {
+    try {
+      return LocalConfig.emailJsPublicKey;
+    } catch (_) {
+      return '';
+    }
+  }
 
   static bool get isEmailJsConfigured =>
       emailJsServiceId.isNotEmpty &&

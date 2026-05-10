@@ -1,71 +1,50 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'cloudinary_provider.dart'; // Assuming this exports CloudinaryService
+import 'supabase_storage_provider.dart';
 
 final imageUploadProvider =
     StateNotifierProvider<ImageUploadNotifier, AsyncValue<String?>>((ref) {
-      final cloudinary = ref.read(cloudinaryProvider);
-      return ImageUploadNotifier(cloudinary);
+      final storage = ref.read(supabaseStorageProvider);
+      return ImageUploadNotifier(storage);
     });
 
 class ImageUploadNotifier extends StateNotifier<AsyncValue<String?>> {
-  final CloudinaryService _cloudinary;
+  final FileUploadService _storage;
 
-  ImageUploadNotifier(this._cloudinary) : super(const AsyncValue.data(null));
+  ImageUploadNotifier(this._storage) : super(const AsyncValue.data(null));
 
-  /// Upload from mobile (File)
-  Future<String?> upload(File file) async {
+  Future<String> upload(File file) async {
     state = const AsyncValue.loading();
     try {
-      final url = await _cloudinary.uploadImage(
+      final url = await _storage.uploadImage(
         file,
-        bucketOverride: CloudinaryService.avatarsBucket,
+        bucketOverride: StorageBuckets.avatars,
       );
-      if (url != null && url.isNotEmpty) {
-        state = AsyncValue.data(url);
-        return url;
-      } else {
-        state = AsyncValue.error(
-          Exception('Image upload failed - no URL returned'),
-          StackTrace.current,
-        );
-        return null;
-      }
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-      return null;
+      state = AsyncValue.data(url);
+      return url;
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+      rethrow;
     }
   }
 
-  /// Upload from web (bytes)
-  Future<String?> uploadBytes(
+  Future<String> uploadBytes(
     Uint8List bytes, {
     String filename = 'avatar.jpg',
-    String? folder,
   }) async {
     state = const AsyncValue.loading();
     try {
-      // --- THE FIX: Updated to match our new Cloudinary Provider ---
-      final url = await _cloudinary.uploadFileBytes(
+      final url = await _storage.uploadFileBytes(
         bytes,
         filename,
-        bucketOverride: CloudinaryService.avatarsBucket,
+        bucketOverride: StorageBuckets.avatars,
       );
-
-      if (url != null && url.isNotEmpty) {
-        state = AsyncValue.data(url);
-        return url;
-      } else {
-        state = AsyncValue.error(
-          Exception('Web image upload failed - no URL returned'),
-          StackTrace.current,
-        );
-        return null;
-      }
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-      return null;
+      state = AsyncValue.data(url);
+      return url;
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+      rethrow;
     }
   }
 

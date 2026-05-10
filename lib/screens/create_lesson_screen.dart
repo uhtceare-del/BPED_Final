@@ -8,8 +8,8 @@ import '../models/class_model.dart';
 import '../models/lesson_model.dart';
 import '../providers/class_provider.dart';
 import '../providers/lesson_provider.dart';
-import '../providers/cloudinary_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/supabase_storage_provider.dart';
 import '../constants/app_colors.dart';
 import '../widgets/dashboard_module.dart';
 
@@ -93,16 +93,13 @@ class _CreateLessonScreenState extends ConsumerState<CreateLessonScreen> {
     try {
       String? remoteUrl;
 
-      // --- SAFE UPLOAD LOGIC FOR WEB & MOBILE ---
       if (kIsWeb && _fileBytes != null) {
-        // IMPORTANT: Your cloudinaryProvider needs an 'uploadFileBytes' function to accept web bytes!
-        // We will pass the bytes and the filename to it.
         remoteUrl = await ref
-            .read(cloudinaryProvider)
+            .read(supabaseStorageProvider)
             .uploadFileBytes(_fileBytes!, _fileName!);
       } else if (!kIsWeb && _localFilePath != null) {
         remoteUrl = await ref
-            .read(cloudinaryProvider)
+            .read(supabaseStorageProvider)
             .uploadFile(_localFilePath!);
       }
 

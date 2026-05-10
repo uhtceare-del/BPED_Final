@@ -31,6 +31,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Create test .env
+        run: |
+          cat > .env <<'EOF'
+          ADMIN_EMAIL=admin.bped.dev@gmail.com
+          SUPABASE_URL=
+          SUPABASE_ANON_KEY=
+          EMAILJS_SERVICE_ID=
+          EMAILJS_TEMPLATE_ID=
+          EMAILJS_PUBLIC_KEY=
+          EOF
+
       - name: Cache pub packages
         uses: actions/cache@v4
         with:
@@ -57,6 +68,45 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Create build .env
+        env:
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          EMAILJS_SERVICE_ID: ${{ secrets.EMAILJS_SERVICE_ID }}
+          EMAILJS_TEMPLATE_ID: ${{ secrets.EMAILJS_TEMPLATE_ID }}
+          EMAILJS_PUBLIC_KEY: ${{ secrets.EMAILJS_PUBLIC_KEY }}
+        run: |
+          cat > .env <<EOF
+          ADMIN_EMAIL=${ADMIN_EMAIL:-admin.bped.dev@gmail.com}
+          SUPABASE_URL=${SUPABASE_URL}
+          SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+          EMAILJS_SERVICE_ID=${EMAILJS_SERVICE_ID}
+          EMAILJS_TEMPLATE_ID=${EMAILJS_TEMPLATE_ID}
+          EMAILJS_PUBLIC_KEY=${EMAILJS_PUBLIC_KEY}
+          EOF
+
+      - name: Validate required runtime config
+        run: |
+          if [ -z "${{ secrets.SUPABASE_URL }}" ]; then
+            echo "SUPABASE_URL secret is missing."
+            exit 1
+          fi
+
+          if [ -z "${{ secrets.SUPABASE_ANON_KEY }}" ]; then
+            echo "SUPABASE_ANON_KEY secret is missing."
+            exit 1
+          fi
+
+          case "${{ secrets.SUPABASE_URL }}" in
+            https://*)
+              ;;
+            *)
+              echo "SUPABASE_URL must start with https://"
+              exit 1
+              ;;
+          esac
+
       - name: Restore pub cache
         uses: actions/cache@v4
         with:
@@ -73,22 +123,10 @@ jobs:
         run: flutter pub get
 
       - name: Build Android APK
-        run: >
-          flutter build apk --release
-          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-          --dart-define=EMAILJS_SERVICE_ID=${{ secrets.EMAILJS_SERVICE_ID }}
-          --dart-define=EMAILJS_TEMPLATE_ID=${{ secrets.EMAILJS_TEMPLATE_ID }}
-          --dart-define=EMAILJS_PUBLIC_KEY=${{ secrets.EMAILJS_PUBLIC_KEY }}
+        run: flutter build apk --release
 
       - name: Build Web
-        run: >
-          flutter build web --release
-          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-          --dart-define=EMAILJS_SERVICE_ID=${{ secrets.EMAILJS_SERVICE_ID }}
-          --dart-define=EMAILJS_TEMPLATE_ID=${{ secrets.EMAILJS_TEMPLATE_ID }}
-          --dart-define=EMAILJS_PUBLIC_KEY=${{ secrets.EMAILJS_PUBLIC_KEY }}
+        run: flutter build web --release
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -97,5 +135,3 @@ jobs:
           path: |
             build/app/outputs/flutter-apk/app-release.apk
             build/web/
-
-
