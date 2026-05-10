@@ -19,6 +19,12 @@ final adminUsersProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
     return Stream.value(const <Map<String, dynamic>>[]);
   }
 
+  final currentUser = ref.watch(currentUserProvider).value;
+  final role = currentUser?.role.toLowerCase() ?? '';
+  if (role != 'admin') {
+    return Stream.value(const <Map<String, dynamic>>[]);
+  }
+
   final db = ref.watch(firestoreProvider);
   final stream = db
       .collection('users')
@@ -49,6 +55,12 @@ final adminDisabledUsersProvider = StreamProvider<List<Map<String, dynamic>>>((
 
   final authUser = ref.watch(authStateProvider).value;
   if (authUser == null) {
+    return Stream.value(const <Map<String, dynamic>>[]);
+  }
+
+  final currentUser = ref.watch(currentUserProvider).value;
+  final role = currentUser?.role.toLowerCase() ?? '';
+  if (role != 'admin') {
     return Stream.value(const <Map<String, dynamic>>[]);
   }
 
@@ -85,6 +97,12 @@ final adminDeletedUsersProvider = StreamProvider<List<Map<String, dynamic>>>((
     return Stream.value(const <Map<String, dynamic>>[]);
   }
 
+  final currentUser = ref.watch(currentUserProvider).value;
+  final role = currentUser?.role.toLowerCase() ?? '';
+  if (role != 'admin') {
+    return Stream.value(const <Map<String, dynamic>>[]);
+  }
+
   final service = SoftDeleteService(firestore: ref.watch(firestoreProvider));
   final stream = service
       .getTrash('users')
@@ -103,6 +121,12 @@ final adminSummaryProvider = FutureProvider<Map<String, int>>((ref) async {
 
   final authUser = ref.watch(authStateProvider).value;
   if (authUser == null) {
+    return {'students': 0, 'classes': 0, 'tasks': 0, 'submissions': 0};
+  }
+
+  final currentUser = ref.watch(currentUserProvider).value;
+  final role = currentUser?.role.toLowerCase() ?? '';
+  if (role != 'admin') {
     return {'students': 0, 'classes': 0, 'tasks': 0, 'submissions': 0};
   }
 
@@ -142,6 +166,12 @@ final adminLessonsProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
     return Stream.value(const <Map<String, dynamic>>[]);
   }
 
+  final currentUser = ref.watch(currentUserProvider).value;
+  final role = currentUser?.role.toLowerCase() ?? '';
+  if (role != 'admin') {
+    return Stream.value(const <Map<String, dynamic>>[]);
+  }
+
   final db = ref.watch(firestoreProvider);
   final stream = db
       .collection('lessons')
@@ -171,6 +201,12 @@ final adminReviewersProvider = StreamProvider<List<Map<String, dynamic>>>((
     return Stream.value(const <Map<String, dynamic>>[]);
   }
 
+  final currentUser = ref.watch(currentUserProvider).value;
+  final role = currentUser?.role.toLowerCase() ?? '';
+  if (role != 'admin') {
+    return Stream.value(const <Map<String, dynamic>>[]);
+  }
+
   final db = ref.watch(firestoreProvider);
   final stream = db
       .collection('reviewers')
@@ -195,6 +231,12 @@ final adminTasksProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
 
   final authUser = ref.watch(authStateProvider).value;
   if (authUser == null) {
+    return Stream.value(const <Map<String, dynamic>>[]);
+  }
+
+  final currentUser = ref.watch(currentUserProvider).value;
+  final role = currentUser?.role.toLowerCase() ?? '';
+  if (role != 'admin') {
     return Stream.value(const <Map<String, dynamic>>[]);
   }
 

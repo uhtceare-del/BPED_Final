@@ -1,0 +1,141 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function role() {
+      return userDoc().role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && role() == 'admin';
+    }
+
+    function isInstructor() {
+      return isSignedIn() && role() == 'instructor';
+    }
+
+    function isStudent() {
+      return isSignedIn() && role() == 'student';
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isSafeSelfUserUpdate() {
+      let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      let currentRole = resource.data.role;
+      let nextRole = request.resource.data.role;
+
+      return changedKeys.hasOnly([
+            'fullName',
+            'avatarUrl',
+            'section',
+            'yearLevel',
+            'onboardingCompleted',
+            'role',
+          ]) &&
+          request.resource.data.email == resource.data.email &&
+          request.resource.data.isDeleted == resource.data.isDeleted &&
+          request.resource.data.isDisabled == resource.data.isDisabled &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          (
+            nextRole == currentRole ||
+            (currentRole == '' && nextRole == 'student')
+          );
+    }
+
+    function isStudentSelfEnrollmentUpdate() {
+      let oldIds = resource.data.enrolledStudentIds;
+      let newIds = request.resource.data.enrolledStudentIds;
+
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'enrolledStudentIds',
+          ]) &&
+          newIds.size() == oldIds.size() + 1 &&
+          newIds.hasAll(oldIds) &&
+          newIds.hasOnly(oldIds.concat([request.auth.uid]));
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin() ||
+        (isInstructor() && resource.data.role == 'student');
+      allow create: if (isSignedIn() && isOwner(userId)) || isAdmin();
+      allow update: if isAdmin() || (isOwner(userId) && isSafeSelfUserUpdate());
+      allow delete: if isAdmin();
+    }
+
+    match /classes/{classId} {
+      allow read: if isSignedIn();
+      allow create: if isInstructor() || isAdmin();
+      allow update: if isInstructor() || isAdmin() ||
+        (isStudent() && isStudentSelfEnrollmentUpdate());
+      allow delete: if isAdmin();
+    }
+
+    match /semesters/{semId} {
+      allow read: if isSignedIn();
+      allow write: if isInstructor() || isAdmin();
+    }
+
+    match /lessons/{lessonId} {
+      allow read: if isSignedIn();
+      allow create: if isInstructor() || isAdmin();
+      allow update, delete: if isAdmin() ||
+        (isInstructor() && resource.data.instructorId == request.auth.uid);
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isSignedIn();
+      allow create: if isInstructor() || isAdmin();
+      allow update, delete: if isAdmin() ||
+        (isInstructor() && resource.data.instructorId == request.auth.uid);
+    }
+
+    match /questions/{qId} {
+      allow read: if isSignedIn();
+      allow create: if isInstructor() || isAdmin();
+      allow update, delete: if isAdmin() ||
+        (isInstructor() && resource.data.instructorId == request.auth.uid);
+    }
+
+    match /submissions/{subId} {
+      allow read: if isAdmin() ||
+        (isStudent() && resource.data.studentId == request.auth.uid) ||
+        (isInstructor() && resource.data.instructorId == request.auth.uid);
+
+      allow create: if (isStudent() && request.resource.data.studentId == request.auth.uid)
+        || isAdmin();
+
+      allow update: if isAdmin() ||
+        (isInstructor() &&
+         resource.data.instructorId == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+           'grade',
+           'gradedAt',
+         ]));
+
+      allow delete: if isAdmin();
+    }
+
+    match /reviewers/{reviewerId} {
+      allow read: if isSignedIn();
+      allow create: if isInstructor() || isAdmin();
+      allow update, delete: if isAdmin() ||
+        (isInstructor() && resource.data.instructorId == request.auth.uid);
+    }
+
+    match /courses/{courseId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

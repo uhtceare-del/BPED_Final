@@ -8,7 +8,7 @@ class SubmissionModel {
   final String?
   fileUrl; // <-- ADDED: This stores the link to the student's PDF/Video
   final DateTime submittedAt;
-  final String? grade;
+  final num? grade;
   final String
   instructorId; // <-- ADDED: This lets the Master Key find this submission
 
@@ -32,7 +32,7 @@ class SubmissionModel {
       studentEmail: data['studentEmail'] ?? '',
       fileUrl: data['fileUrl'], // <-- FETCH from Firestore
       submittedAt: (data['submittedAt'] as Timestamp).toDate(),
-      grade: data['grade'],
+      grade: data['grade'] != null ? (data['grade'] as num) : null,
       instructorId: data['instructorId'] ?? '', // <-- FETCH from Firestore
     );
   }

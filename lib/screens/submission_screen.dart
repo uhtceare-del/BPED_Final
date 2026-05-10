@@ -41,7 +41,7 @@ class SubmissionScreen extends ConsumerWidget {
             itemCount: submissions.length,
             itemBuilder: (context, index) {
               final sub = submissions[index];
-              final isGraded = sub.grade != null && sub.grade!.isNotEmpty;
+              final isGraded = sub.grade != null;
 
               return Card(
                 elevation: 0,
@@ -102,7 +102,9 @@ class SubmissionScreen extends ConsumerWidget {
     WidgetRef ref,
     SubmissionModel submission,
   ) {
-    final gradeController = TextEditingController(text: submission.grade);
+    final gradeController = TextEditingController(
+      text: submission.grade?.toString() ?? '',
+    );
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
 

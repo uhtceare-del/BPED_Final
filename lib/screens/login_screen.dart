@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../config/local_config.dart';
 import 'auth_gate.dart';
 import 'home_screen.dart';
 import 'signup_screen.dart';
@@ -167,15 +166,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     return 'Must be a valid email address';
                   }
 
-                  final isConfiguredAdmin =
-                      email.toLowerCase() ==
-                      LocalConfig.adminEmail.toLowerCase();
-                  if (isConfiguredAdmin ||
-                      email.toLowerCase().endsWith('@gmail.com')) {
-                    return null;
-                  }
-
-                  return 'Must be your configured admin email or a valid @gmail.com';
+                  return null;
                 },
               ),
               const SizedBox(height: 18),
