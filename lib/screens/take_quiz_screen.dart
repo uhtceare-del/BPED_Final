@@ -41,17 +41,14 @@ class _TakeQuizScreenState extends ConsumerState<TakeQuizScreen> {
         }
       }
 
-      double rawScore =
-          (correctAnswers / questions.length) * widget.task.maxScore;
-      String finalGrade = rawScore.round().toString();
+      final num finalGrade =
+          ((correctAnswers / questions.length) * widget.task.maxScore).round();
 
       // 2. Get Current Student Info
-      final user = ref
-          .read(currentUserProvider)
-          .value; // Updated to match your auth provider
+      final user = ref.read(currentUserProvider).value;
       if (user == null) throw Exception("User not logged in");
 
-      // 3. THE FIX: Create Submission Model with all required fields
+      // 3. Create Submission Model with all required fields
       final submission = SubmissionModel(
         id: '',
         taskId: widget.task.id,
@@ -59,8 +56,8 @@ class _TakeQuizScreenState extends ConsumerState<TakeQuizScreen> {
         studentEmail: user.email,
         submittedAt: DateTime.now(),
         grade: finalGrade,
-        instructorId: widget.task.instructorId, // THE MASTER KEY
-        fileUrl: null, // Quizzes don't usually have file uploads
+        instructorId: widget.task.instructorId,
+        fileUrl: null,
       );
 
       // 4. Save to Firestore
@@ -82,7 +79,7 @@ class _TakeQuizScreenState extends ConsumerState<TakeQuizScreen> {
     }
   }
 
-  void _showResultsDialog(int correct, int total, String finalGrade) {
+  void _showResultsDialog(int correct, int total, num finalGrade) {
     showDialog(
       context: context,
       barrierDismissible: false,

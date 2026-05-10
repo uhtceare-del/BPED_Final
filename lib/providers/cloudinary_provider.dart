@@ -72,10 +72,7 @@ class CloudinaryService {
     return _mediaBucket;
   }
 
-  Future<String?> uploadFile(
-    String filePath, {
-    String? bucketOverride,
-  }) async {
+  Future<String?> uploadFile(String filePath, {String? bucketOverride}) async {
     final result = await _uploadWithRetry(
       filePath: filePath,
       bytes: null,
@@ -86,10 +83,7 @@ class CloudinaryService {
     return result.isSuccess ? result.data : null;
   }
 
-  Future<String?> uploadImage(
-    File file, {
-    String? bucketOverride,
-  }) async {
+  Future<String?> uploadImage(File file, {String? bucketOverride}) async {
     return uploadFile(file.path, bucketOverride: bucketOverride);
   }
 
@@ -114,21 +108,33 @@ class CloudinaryService {
     required String filename,
     String? bucketOverride,
   }) async {
-    try {
-      final url = await RetryHelper.retry(
-        () => _upload(filePath, bytes, filename, bucketOverride),
-        maxAttempts: 3,
-        shouldRetry: (error) =>
-            error is NetworkException || error is FileStorageException,
-      );
-      return Result.success(url);
-    } catch (error) {
-      final appError = error is AppException
-          ? error
-          : ErrorHandler.handleFirebaseException(error, context: 'File upload');
-      ErrorHandler.logError(appError, context: 'CloudinaryService.upload');
-      return Result.failure(appError);
+    const maxAttempts = 3;
+    Object? lastError;
+
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final url = await _upload(filePath, bytes, filename, bucketOverride);
+        return Result.success(url);
+      } catch (error) {
+        lastError = error;
+        final shouldRetry =
+            error is NetworkException || error is FileStorageException;
+        if (!shouldRetry || attempt == maxAttempts) {
+          break;
+        }
+        // Exponential backoff between retries.
+        await Future<void>.delayed(Duration(milliseconds: 200 * attempt));
+      }
     }
+
+    final appError = lastError is AppException
+        ? lastError
+        : ErrorHandler.handleFirebaseException(
+            lastError ?? Exception('Upload failed with no error details'),
+            context: 'File upload',
+          );
+    ErrorHandler.logError(appError, context: 'CloudinaryService.upload');
+    return Result.failure(appError);
   }
 
   Future<String?> _upload(

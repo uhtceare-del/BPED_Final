@@ -1013,17 +1013,9 @@ class _SummaryChip extends StatelessWidget {
   }
 }
 
-double? _tryParseGrade(String? grade) {
-  if (grade == null) {
-    return null;
-  }
-
-  final match = RegExp(r'-?\d+(?:\.\d+)?').firstMatch(grade);
-  if (match == null) {
-    return null;
-  }
-
-  return double.tryParse(match.group(0)!);
+// Accepts num? directly since grade is now stored as num? in SubmissionModel.
+double? _tryParseGrade(num? grade) {
+  return grade?.toDouble();
 }
 
 String _formatPercent(double value) {
