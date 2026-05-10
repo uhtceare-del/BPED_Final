@@ -12,18 +12,16 @@ void main() {
         studentEmail: 'student@example.com',
         fileUrl: 'https://example.com/upload.mp4',
         submittedAt: submittedAt,
-        grade: '95',
+        grade: 95,
         instructorId: 'instructor-1',
       );
-
       final map = submission.toFirestore();
-
       expect(map['taskId'], 'task-1');
       expect(map['studentId'], 'student-1');
       expect(map['studentEmail'], 'student@example.com');
       expect(map['fileUrl'], 'https://example.com/upload.mp4');
       expect(map['submittedAt'], submittedAt);
-      expect(map['grade'], '95');
+      expect(map['grade'], 95);
       expect(map['instructorId'], 'instructor-1');
     });
   });
