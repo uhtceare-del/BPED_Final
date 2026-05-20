@@ -9,24 +9,22 @@ final submissionRepositoryProvider = Provider<SubmissionRepository>((ref) {
   return SubmissionRepository(ref.watch(firestoreProvider));
 });
 
-// 2. All Submissions (For Instructors)
-final submissionProvider = StreamProvider<List<SubmissionModel>>((ref) {
+// 2. All submissions for admin reporting
+final adminSubmissionsProvider = StreamProvider<List<SubmissionModel>>((ref) {
   if (ref.watch(signOutInProgressProvider)) {
     return Stream.value(const <SubmissionModel>[]);
   }
 
-  final authState = ref.watch(authStateProvider);
-  return authState.when(
-    data: (authUser) {
-      if (authUser == null) {
-        return Stream.value(const <SubmissionModel>[]);
-      }
+  final appUser = ref.watch(bootstrapAppUserProvider);
+  if (appUser == null || appUser.role.trim().toLowerCase() != 'admin') {
+    return Stream.value(const <SubmissionModel>[]);
+  }
 
-      final repository = ref.watch(submissionRepositoryProvider);
-      return repository.getAllSubmissions();
-    },
-    loading: () => Stream.value(const <SubmissionModel>[]),
-    error: (_, _) => Stream.value(const <SubmissionModel>[]),
+  final stream = ref.watch(submissionRepositoryProvider).getAllSubmissions();
+  return guardAuthTransitionStream(
+    ref,
+    stream,
+    fallbackValue: const <SubmissionModel>[],
   );
 });
 

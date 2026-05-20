@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:phys_ed/models/submission_model.dart';
 
 void main() {
@@ -24,5 +25,37 @@ void main() {
       expect(map['grade'], 95);
       expect(map['instructorId'], 'instructor-1');
     });
+
+    test('parses legacy submission records safely', () {
+      final snapshot = _FakeDocumentSnapshot({
+        'taskId': 'task-legacy',
+        'studentId': 'student-legacy',
+        'studentEmail': 'legacy@example.com',
+        'submittedAt': '2026-04-08T09:30:00.000',
+        'grade': '88.5',
+        'instructorId': 'instructor-legacy',
+      });
+
+      final submission = SubmissionModel.fromFirestore(snapshot);
+
+      expect(submission.taskId, 'task-legacy');
+      expect(submission.studentId, 'student-legacy');
+      expect(submission.studentEmail, 'legacy@example.com');
+      expect(submission.submittedAt, DateTime.parse('2026-04-08T09:30:00.000'));
+      expect(submission.grade, 88.5);
+      expect(submission.instructorId, 'instructor-legacy');
+    });
   });
+}
+
+class _FakeDocumentSnapshot extends Fake implements DocumentSnapshot {
+  _FakeDocumentSnapshot(this._data);
+
+  final Map<String, dynamic> _data;
+
+  @override
+  String get id => 'submission-legacy';
+
+  @override
+  dynamic data() => _data;
 }

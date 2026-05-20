@@ -41,7 +41,7 @@ class _AdminReportsViewState extends ConsumerState<AdminReportsView> {
     final usersAsync = ref.watch(adminUsersProvider);
     final classesAsync = ref.watch(allClassesProvider);
     final tasksAsync = ref.watch(allTasksProvider);
-    final submissionsAsync = ref.watch(submissionProvider);
+    final submissionsAsync = ref.watch(adminSubmissionsProvider);
 
     if (usersAsync.isLoading ||
         classesAsync.isLoading ||

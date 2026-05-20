@@ -24,15 +24,15 @@ class SubmissionModel {
   });
 
   factory SubmissionModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
     return SubmissionModel(
       id: doc.id,
       taskId: data['taskId'] ?? '',
       studentId: data['studentId'] ?? '',
       studentEmail: data['studentEmail'] ?? '',
       fileUrl: data['fileUrl'], // <-- FETCH from Firestore
-      submittedAt: (data['submittedAt'] as Timestamp).toDate(),
-      grade: data['grade'] != null ? (data['grade'] as num) : null,
+      submittedAt: _parseSubmittedAt(data['submittedAt']),
+      grade: _parseGrade(data['grade']),
       instructorId: data['instructorId'] ?? '', // <-- FETCH from Firestore
     );
   }
@@ -47,5 +47,28 @@ class SubmissionModel {
       'grade': grade,
       'instructorId': instructorId, // <-- SAVE to Firestore
     };
+  }
+
+  static DateTime _parseSubmittedAt(dynamic raw) {
+    if (raw is Timestamp) {
+      return raw.toDate();
+    }
+    if (raw is DateTime) {
+      return raw;
+    }
+    if (raw is String) {
+      return DateTime.tryParse(raw) ?? DateTime.fromMillisecondsSinceEpoch(0);
+    }
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  static num? _parseGrade(dynamic raw) {
+    if (raw == null) {
+      return null;
+    }
+    if (raw is num) {
+      return raw;
+    }
+    return num.tryParse(raw.toString());
   }
 }
