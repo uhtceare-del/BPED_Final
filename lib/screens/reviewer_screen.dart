@@ -12,9 +12,12 @@ import '../providers/reviewer_provider.dart';
 import '../providers/class_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/supabase_storage_provider.dart';
+import '../models/class_model.dart';
 import '../models/reviewer_model.dart';
+import '../services/bped_curriculum_service.dart';
 import '../services/soft_delete_service.dart';
 import '../widgets/pdf_viewer_widget.dart';
+import '../widgets/curriculum_subject_dropdown.dart';
 import '../widgets/dashboard_module.dart';
 
 class ReviewerScreen extends ConsumerStatefulWidget {
@@ -356,21 +359,6 @@ class _UploadReviewerSheetState extends ConsumerState<_UploadReviewerSheet> {
 
   bool get _hasFile => kIsWeb ? _fileBytes != null : _filePath != null;
 
-  final List<String> _subjects = [
-    'Anatomy & Physiology',
-    'Kinesiology',
-    'Sports Psychology',
-    'Pedagogy in PE',
-    'Sports Technique',
-    'Sports Management',
-    'Team Sports',
-    'Individual Sports',
-    'Aquatics',
-    'Dance & Rhythmic Activities',
-    'Physical Fitness',
-    'General',
-  ];
-
   @override
   void dispose() {
     _titleController.dispose();
@@ -471,6 +459,9 @@ class _UploadReviewerSheetState extends ConsumerState<_UploadReviewerSheet> {
   @override
   Widget build(BuildContext context) {
     final classesAsync = ref.watch(allClassesProvider);
+    final selectedClass = (classesAsync.value ?? const <ClassModel>[])
+        .where((cls) => cls.id == _selectedClassId)
+        .firstOrNull;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -544,19 +535,6 @@ class _UploadReviewerSheetState extends ConsumerState<_UploadReviewerSheet> {
             ),
             const SizedBox(height: 14),
 
-            // Subject dropdown
-            DropdownButtonFormField<String>(
-              initialValue: _selectedSubject,
-              decoration: const InputDecoration(labelText: 'Subject'),
-              items: _subjects
-                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                  .toList(),
-              onChanged: _isUploading
-                  ? null
-                  : (v) => setState(() => _selectedSubject = v),
-            ),
-            const SizedBox(height: 14),
-
             // Class picker — REQUIRED
             classesAsync.when(
               data: (classes) {
@@ -587,18 +565,43 @@ class _UploadReviewerSheetState extends ConsumerState<_UploadReviewerSheet> {
                       .map(
                         (c) => DropdownMenuItem(
                           value: c.id,
-                          child: Text('${c.className} — ${c.subject}'),
+                          child: Text(
+                            '${c.className} — ${c.classCode} — ${c.subject}',
+                          ),
                         ),
                       )
                       .toList(),
                   onChanged: _isUploading
                       ? null
-                      : (v) => setState(() => _selectedClassId = v),
+                      : (value) => setState(() {
+                          _selectedClassId = value;
+                          final nextClass = classes
+                              .where((cls) => cls.id == value)
+                              .firstOrNull;
+                          _selectedSubject =
+                              BpedCurriculumService.resolveSubjectSelection(
+                                currentValue: _selectedSubject,
+                                preferredValue: nextClass?.subject,
+                                yearLevel: nextClass?.yearLevel,
+                                semesterLabel: nextClass?.semesterLabel,
+                              );
+                        }),
                 );
               },
               loading: () => const LinearProgressIndicator(),
               error: (error, stackTrace) =>
                   const Text('Could not load classes'),
+            ),
+            const SizedBox(height: 14),
+
+            // Subject dropdown
+            CurriculumSubjectDropdown(
+              yearLevel: selectedClass?.yearLevel,
+              semesterLabel: selectedClass?.semesterLabel ?? '1st Semester',
+              selectedValue: _selectedSubject,
+              preferredValue: selectedClass?.subject,
+              enabled: !_isUploading && selectedClass != null,
+              onChanged: (value) => setState(() => _selectedSubject = value),
             ),
             const SizedBox(height: 14),
 

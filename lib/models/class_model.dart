@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../services/bped_curriculum_service.dart';
+
 class ClassModel {
   final String id;
   final String className;
+  final int? yearLevel;
   final String subject;
   final String schedule;
   final String classCode;
@@ -13,6 +16,7 @@ class ClassModel {
   ClassModel({
     required this.id,
     required this.className,
+    this.yearLevel,
     required this.subject,
     required this.schedule,
     required this.classCode,
@@ -24,6 +28,7 @@ class ClassModel {
   Map<String, dynamic> toMap() {
     return {
       'className': className,
+      'yearLevel': yearLevel,
       'subject': subject,
       'schedule': schedule,
       'classCode': classCode,
@@ -38,6 +43,9 @@ class ClassModel {
     return ClassModel(
       id: doc.id,
       className: data['className'] ?? '',
+      yearLevel:
+          BpedCurriculumService.normalizeYearLevel(data['yearLevel']) ??
+          BpedCurriculumService.inferYearLevel(data['className'] ?? ''),
       subject: data['subject'] ?? '',
       schedule: data['schedule'] ?? '',
       classCode: data['classCode'] ?? '',

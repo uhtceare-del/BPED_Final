@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/input_validator.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/dashboard_module.dart';
 
@@ -89,13 +91,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         TextFormField(
                           controller: _nameController,
                           textCapitalization: TextCapitalization.words,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[A-Za-z ]'),
+                            ),
+                          ],
                           decoration: const InputDecoration(
                             labelText: 'Full Name',
                             prefixIcon: Icon(Icons.person_outline),
                           ),
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Enter your full name'
-                              : null,
+                          validator: (value) {
+                            final error = Validator.validateFullName(value);
+                            if (error == 'Full name is required') {
+                              return 'Enter your full name';
+                            }
+                            return error;
+                          },
                         ),
                         const SizedBox(height: 24),
                         DropdownButtonFormField<String>(

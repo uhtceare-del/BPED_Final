@@ -1,19 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../constants/app_colors.dart';
+import '../core/input_validator.dart';
 import '../models/class_model.dart';
-import '../models/submission_model.dart';
-import '../models/task_model.dart';
 import '../models/user_model.dart';
 import '../providers/admin_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/class_provider.dart';
-import '../providers/submission_provider.dart';
-import '../providers/task_provider.dart';
+import '../services/bped_curriculum_service.dart';
 import '../screens/dashboard_reports_screen.dart';
 import '../screens/trash_screen.dart';
+import '../widgets/curriculum_subject_dropdown.dart';
 import '../widgets/dashboard_module.dart';
 import '../widgets/dashboard_shell.dart';
 
@@ -28,21 +28,13 @@ class AdminDashboard extends ConsumerWidget {
     Icons.people_outline,
     Icons.upload_file_outlined,
   ];
-  static const _activeIcons = [
-    Icons.groups,
-    Icons.people,
-    Icons.upload_file,
-  ];
+  static const _activeIcons = [Icons.groups, Icons.people, Icons.upload_file];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tab = ref.watch(_adminTabProvider);
     final userAsync = ref.watch(currentUserProvider);
-    const screens = [
-      _AdminClassesTab(),
-      _AdminUsersTab(),
-      _AdminUploadsTab(),
-    ];
+    const screens = [_AdminClassesTab(), _AdminUsersTab(), _AdminUploadsTab()];
     final selectedTab = tab >= screens.length ? 0 : tab;
     final navItems = List.generate(
       _labels.length,
@@ -285,7 +277,6 @@ class _AdminClassesTab extends ConsumerWidget {
     ClassModel? existing,
   }) {
     final nameCtrl = TextEditingController(text: existing?.className ?? '');
-    final subjectCtrl = TextEditingController(text: existing?.subject ?? '');
     final schedCtrl = TextEditingController(text: existing?.schedule ?? '');
     final instructors =
         (ref.read(adminUsersProvider).value ?? const [])
@@ -302,6 +293,15 @@ class _AdminClassesTab extends ConsumerWidget {
     String semester = existing?.semesterLabel.isNotEmpty == true
         ? existing!.semesterLabel
         : '1st Semester';
+    int? yearLevel =
+        existing?.yearLevel ??
+        BpedCurriculumService.inferYearLevel(existing?.className ?? '') ??
+        1;
+    String? selectedSubject = BpedCurriculumService.resolveSubjectSelection(
+      currentValue: existing?.subject,
+      yearLevel: yearLevel,
+      semesterLabel: semester,
+    );
     String? instructorId = existing?.instructorId.isNotEmpty == true
         ? existing!.instructorId
         : instructors.isNotEmpty
@@ -326,11 +326,33 @@ class _AdminClassesTab extends ConsumerWidget {
               caps: TextCapitalization.characters,
             ),
             const SizedBox(height: 12),
-            _AdminOutlineField(controller: subjectCtrl, label: 'Subject'),
-            const SizedBox(height: 12),
             _AdminOutlineField(
               controller: schedCtrl,
               label: 'Schedule (e.g. Mon/Wed 1:00PM)',
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int>(
+              initialValue: yearLevel,
+              decoration: const InputDecoration(labelText: 'Year Level'),
+              items: [1, 2, 3, 4]
+                  .map(
+                    (year) => DropdownMenuItem(
+                      value: year,
+                      child: Text(BpedCurriculumService.formatYearLevel(year)),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                setSheet(() {
+                  yearLevel = value;
+                  selectedSubject =
+                      BpedCurriculumService.resolveSubjectSelection(
+                        currentValue: selectedSubject,
+                        yearLevel: yearLevel,
+                        semesterLabel: semester,
+                      );
+                });
+              },
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -348,9 +370,25 @@ class _AdminClassesTab extends ConsumerWidget {
               ],
               onChanged: (value) {
                 if (value != null) {
-                  setSheet(() => semester = value);
+                  setSheet(() {
+                    semester = value;
+                    selectedSubject =
+                        BpedCurriculumService.resolveSubjectSelection(
+                          currentValue: selectedSubject,
+                          yearLevel: yearLevel,
+                          semesterLabel: semester,
+                        );
+                  });
                 }
               },
+            ),
+            const SizedBox(height: 12),
+            CurriculumSubjectDropdown(
+              yearLevel: yearLevel,
+              semesterLabel: semester,
+              selectedValue: selectedSubject,
+              preferredValue: existing?.subject,
+              onChanged: (value) => setSheet(() => selectedSubject = value),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -388,6 +426,12 @@ class _AdminClassesTab extends ConsumerWidget {
             if (nameCtrl.text.trim().isEmpty) {
               throw Exception('Class name is required.');
             }
+            if (yearLevel == null) {
+              throw Exception('Select a year level before saving the class.');
+            }
+            if (selectedSubject == null || selectedSubject!.trim().isEmpty) {
+              throw Exception('Select a subject before saving the class.');
+            }
             if (instructorId == null || instructorId!.isEmpty) {
               throw Exception('Assign an instructor before saving the class.');
             }
@@ -399,7 +443,10 @@ class _AdminClassesTab extends ConsumerWidget {
                     ClassModel(
                       id: '',
                       className: nameCtrl.text.trim(),
-                      subject: subjectCtrl.text.trim(),
+                      yearLevel: yearLevel,
+                      subject: BpedCurriculumService.normalizeStoredSubject(
+                        selectedSubject!,
+                      ),
                       schedule: schedCtrl.text.trim(),
                       classCode: '',
                       semesterLabel: semester,
@@ -413,7 +460,10 @@ class _AdminClassesTab extends ConsumerWidget {
                   .doc(existing.id)
                   .update({
                     'className': nameCtrl.text.trim(),
-                    'subject': subjectCtrl.text.trim(),
+                    'yearLevel': yearLevel,
+                    'subject': BpedCurriculumService.normalizeStoredSubject(
+                      selectedSubject!,
+                    ),
                     'schedule': schedCtrl.text.trim(),
                     'semesterLabel': semester,
                     'instructorId': instructorId,
@@ -466,7 +516,17 @@ class _AdminClassCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
+              if (cls.yearLevel != null)
+                DashboardTag(
+                  label: BpedCurriculumService.formatYearLevel(cls.yearLevel!),
+                  color: Colors.indigo.shade700,
+                ),
               DashboardTag(label: cls.subject, color: kNavy),
+              if (cls.semesterLabel.isNotEmpty)
+                DashboardTag(
+                  label: cls.semesterLabel,
+                  color: Colors.green.shade700,
+                ),
               if (cls.schedule.isNotEmpty)
                 DashboardTag(
                   label: cls.schedule,
@@ -572,6 +632,9 @@ class _AdminUsersTabState extends ConsumerState<_AdminUsersTab> {
               controller: nameCtrl,
               label: 'Full Name',
               caps: TextCapitalization.words,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z ]')),
+              ],
             ),
             const SizedBox(height: 12),
             _AdminOutlineField(
@@ -651,8 +714,20 @@ class _AdminUsersTabState extends ConsumerState<_AdminUsersTab> {
           onSubmit: () async {
             final name = nameCtrl.text.trim();
             final email = emailCtrl.text.trim();
-            if (name.isEmpty || email.isEmpty) {
-              throw Exception('Name and email are required.');
+            final nameError = Validator.validateFullName(name);
+            if (nameError != null) {
+              throw Exception(nameError);
+            }
+            final emailError = Validator.validateEmail(email);
+            if (emailError != null) {
+              throw Exception(emailError);
+            }
+            final password = passwordCtrl.text.trim();
+            if (!isEdit && password.isNotEmpty) {
+              final passwordError = Validator.validatePassword(password);
+              if (passwordError != null) {
+                throw Exception(passwordError);
+              }
             }
 
             final data = <String, dynamic>{
@@ -668,7 +743,7 @@ class _AdminUsersTabState extends ConsumerState<_AdminUsersTab> {
             } else {
               await adminCreateUser({
                 ...data,
-                'password': passwordCtrl.text.trim(),
+                'password': password,
                 'avatarUrl': '',
                 'onboardingCompleted': true,
                 'createdAt': FieldValue.serverTimestamp(),
@@ -1209,21 +1284,19 @@ class _AdminUploadsTab extends ConsumerWidget {
                       );
                     }
 
+                    final classesById = {
+                      for (final cls
+                          in (classesAsync.value ?? const <ClassModel>[]))
+                        cls.id: cls,
+                    };
+                    final availableClasses = classesById.values.toList();
+
                     return ListView.builder(
                       padding: const EdgeInsets.only(top: 16, bottom: 24),
                       itemCount: lessons.length,
                       itemBuilder: (context, i) {
                         final lesson = lessons[i];
-                        final titleCtrl = TextEditingController(
-                          text: (lesson['title'] ?? '').toString(),
-                        );
-                        final descCtrl = TextEditingController(
-                          text: (lesson['description'] ?? '').toString(),
-                        );
-                        final subjectCtrl = TextEditingController(
-                          text: (lesson['subject'] ?? lesson['category'] ?? '')
-                              .toString(),
-                        );
+                        final lessonClass = classesById[lesson['classId']];
                         return _AdminContentCard(
                           icon: Icons.menu_book,
                           iconBg: kNavy.withValues(alpha: 0.08),
@@ -1231,6 +1304,11 @@ class _AdminUploadsTab extends ConsumerWidget {
                           title: (lesson['title'] ?? 'Untitled').toString(),
                           subtitle: (lesson['description'] ?? '').toString(),
                           chips: [
+                            if (lessonClass != null)
+                              DashboardTag(
+                                label: lessonClass.className,
+                                color: Colors.teal.shade700,
+                              ),
                             if ((lesson['subject'] ?? '').toString().isNotEmpty)
                               DashboardTag(
                                 label: lesson['subject'].toString(),
@@ -1249,32 +1327,10 @@ class _AdminUploadsTab extends ConsumerWidget {
                                 color: Colors.red,
                               ),
                           ],
-                          onEdit: () => _showEditSheet(
+                          onEdit: () => _showLessonEditSheet(
                             context,
-                            title: 'Edit Lesson',
-                            fields: [
-                              _AdminOutlineField(
-                                controller: titleCtrl,
-                                label: 'Title',
-                              ),
-                              const SizedBox(height: 12),
-                              _AdminOutlineField(
-                                controller: descCtrl,
-                                label: 'Description',
-                                maxLines: 3,
-                              ),
-                              const SizedBox(height: 12),
-                              _AdminOutlineField(
-                                controller: subjectCtrl,
-                                label: 'Subject',
-                              ),
-                            ],
-                            onSubmit: () =>
-                                adminUpdateLesson(lesson['id'].toString(), {
-                                  'title': titleCtrl.text.trim(),
-                                  'description': descCtrl.text.trim(),
-                                  'subject': subjectCtrl.text.trim(),
-                                }),
+                            lesson: lesson,
+                            classes: availableClasses,
                           ),
                           onDelete: () => _showDeleteDialog(
                             context,
@@ -1306,21 +1362,19 @@ class _AdminUploadsTab extends ConsumerWidget {
                       );
                     }
 
+                    final classesById = {
+                      for (final cls
+                          in (classesAsync.value ?? const <ClassModel>[]))
+                        cls.id: cls,
+                    };
+                    final availableClasses = classesById.values.toList();
+
                     return ListView.builder(
                       padding: const EdgeInsets.only(top: 16, bottom: 24),
                       itemCount: reviewers.length,
                       itemBuilder: (context, i) {
                         final reviewer = reviewers[i];
-                        final titleCtrl = TextEditingController(
-                          text: (reviewer['title'] ?? '').toString(),
-                        );
-                        final subjectCtrl = TextEditingController(
-                          text:
-                              (reviewer['subject'] ??
-                                      reviewer['category'] ??
-                                      '')
-                                  .toString(),
-                        );
+                        final reviewerClass = classesById[reviewer['classId']];
                         return _AdminContentCard(
                           icon: Icons.picture_as_pdf,
                           iconBg: Colors.red.shade50,
@@ -1331,28 +1385,18 @@ class _AdminUploadsTab extends ConsumerWidget {
                                       reviewer['category'] ??
                                       '')
                                   .toString(),
-                          chips: const [
-                            DashboardTag(label: 'PDF', color: Colors.red),
+                          chips: [
+                            const DashboardTag(label: 'PDF', color: Colors.red),
+                            if (reviewerClass != null)
+                              DashboardTag(
+                                label: reviewerClass.className,
+                                color: Colors.teal.shade700,
+                              ),
                           ],
-                          onEdit: () => _showEditSheet(
+                          onEdit: () => _showReviewerEditSheet(
                             context,
-                            title: 'Edit Reviewer',
-                            fields: [
-                              _AdminOutlineField(
-                                controller: titleCtrl,
-                                label: 'Title',
-                              ),
-                              const SizedBox(height: 12),
-                              _AdminOutlineField(
-                                controller: subjectCtrl,
-                                label: 'Subject',
-                              ),
-                            ],
-                            onSubmit: () =>
-                                adminUpdateReviewer(reviewer['id'].toString(), {
-                                  'title': titleCtrl.text.trim(),
-                                  'subject': subjectCtrl.text.trim(),
-                                }),
+                            reviewer: reviewer,
+                            classes: availableClasses,
                           ),
                           onDelete: () => _showDeleteDialog(
                             context,
@@ -1377,25 +1421,208 @@ class _AdminUploadsTab extends ConsumerWidget {
     );
   }
 
-  void _showEditSheet(
+  void _showLessonEditSheet(
     BuildContext context, {
-    required String title,
-    required List<Widget> fields,
-    required Future<void> Function() onSubmit,
+    required Map<String, dynamic> lesson,
+    required List<ClassModel> classes,
   }) {
+    final titleCtrl = TextEditingController(
+      text: (lesson['title'] ?? '').toString(),
+    );
+    final descCtrl = TextEditingController(
+      text: (lesson['description'] ?? '').toString(),
+    );
+    var selectedClassId = (lesson['classId'] ?? '').toString();
+    ClassModel? selectedClass = classes
+        .where((cls) => cls.id == selectedClassId)
+        .firstOrNull;
+    String? selectedSubject = BpedCurriculumService.resolveSubjectSelection(
+      currentValue: (lesson['subject'] ?? lesson['category'] ?? '').toString(),
+      preferredValue: selectedClass?.subject,
+      yearLevel: selectedClass?.yearLevel,
+      semesterLabel: selectedClass?.semesterLabel,
+    );
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => _AdminFormSheet(
-        title: title,
-        subtitle: 'Update the selected content item.',
-        fields: fields,
-        buttonLabel: 'SAVE CHANGES',
-        buttonColor: Colors.blueAccent,
-        onSubmit: onSubmit,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setSheet) => _AdminFormSheet(
+          title: 'Edit Lesson',
+          subtitle: 'Update the selected content item.',
+          fields: [
+            _AdminOutlineField(controller: titleCtrl, label: 'Title'),
+            const SizedBox(height: 12),
+            _AdminOutlineField(
+              controller: descCtrl,
+              label: 'Description',
+              maxLines: 3,
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: selectedClassId.isEmpty ? null : selectedClassId,
+              decoration: const InputDecoration(labelText: 'Assigned Class'),
+              items: classes
+                  .map(
+                    (cls) => DropdownMenuItem(
+                      value: cls.id,
+                      child: Text(
+                        '${cls.className} · ${cls.classCode} · ${cls.subject}',
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                setSheet(() {
+                  selectedClassId = value ?? '';
+                  selectedClass = classes
+                      .where((cls) => cls.id == selectedClassId)
+                      .firstOrNull;
+                  selectedSubject =
+                      BpedCurriculumService.resolveSubjectSelection(
+                        currentValue: selectedSubject,
+                        preferredValue: selectedClass?.subject,
+                        yearLevel: selectedClass?.yearLevel,
+                        semesterLabel: selectedClass?.semesterLabel,
+                      );
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            CurriculumSubjectDropdown(
+              yearLevel: selectedClass?.yearLevel,
+              semesterLabel: selectedClass?.semesterLabel ?? '1st Semester',
+              selectedValue: selectedSubject,
+              preferredValue: selectedClass?.subject,
+              enabled: selectedClass != null,
+              onChanged: (value) => setSheet(() => selectedSubject = value),
+            ),
+          ],
+          buttonLabel: 'SAVE CHANGES',
+          buttonColor: Colors.blueAccent,
+          onSubmit: () async {
+            if (selectedClass == null) {
+              throw Exception('Assign a class before saving the lesson.');
+            }
+            if (selectedSubject == null || selectedSubject!.trim().isEmpty) {
+              throw Exception('Select a subject before saving the lesson.');
+            }
+
+            await adminUpdateLesson(lesson['id'].toString(), {
+              'title': titleCtrl.text.trim(),
+              'description': descCtrl.text.trim(),
+              'classId': selectedClass!.id,
+              'courseId': selectedClass!.id,
+              'subject': BpedCurriculumService.normalizeStoredSubject(
+                selectedSubject!,
+              ),
+              'category': BpedCurriculumService.normalizeStoredSubject(
+                selectedSubject!,
+              ),
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showReviewerEditSheet(
+    BuildContext context, {
+    required Map<String, dynamic> reviewer,
+    required List<ClassModel> classes,
+  }) {
+    final titleCtrl = TextEditingController(
+      text: (reviewer['title'] ?? '').toString(),
+    );
+    var selectedClassId = (reviewer['classId'] ?? '').toString();
+    ClassModel? selectedClass = classes
+        .where((cls) => cls.id == selectedClassId)
+        .firstOrNull;
+    String? selectedSubject = BpedCurriculumService.resolveSubjectSelection(
+      currentValue: (reviewer['subject'] ?? reviewer['category'] ?? '')
+          .toString(),
+      preferredValue: selectedClass?.subject,
+      yearLevel: selectedClass?.yearLevel,
+      semesterLabel: selectedClass?.semesterLabel,
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setSheet) => _AdminFormSheet(
+          title: 'Edit Reviewer',
+          subtitle: 'Update the selected content item.',
+          fields: [
+            _AdminOutlineField(controller: titleCtrl, label: 'Title'),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: selectedClassId.isEmpty ? null : selectedClassId,
+              decoration: const InputDecoration(labelText: 'Assigned Class'),
+              items: classes
+                  .map(
+                    (cls) => DropdownMenuItem(
+                      value: cls.id,
+                      child: Text(
+                        '${cls.className} · ${cls.classCode} · ${cls.subject}',
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                setSheet(() {
+                  selectedClassId = value ?? '';
+                  selectedClass = classes
+                      .where((cls) => cls.id == selectedClassId)
+                      .firstOrNull;
+                  selectedSubject =
+                      BpedCurriculumService.resolveSubjectSelection(
+                        currentValue: selectedSubject,
+                        preferredValue: selectedClass?.subject,
+                        yearLevel: selectedClass?.yearLevel,
+                        semesterLabel: selectedClass?.semesterLabel,
+                      );
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            CurriculumSubjectDropdown(
+              yearLevel: selectedClass?.yearLevel,
+              semesterLabel: selectedClass?.semesterLabel ?? '1st Semester',
+              selectedValue: selectedSubject,
+              preferredValue: selectedClass?.subject,
+              enabled: selectedClass != null,
+              onChanged: (value) => setSheet(() => selectedSubject = value),
+            ),
+          ],
+          buttonLabel: 'SAVE CHANGES',
+          buttonColor: Colors.blueAccent,
+          onSubmit: () async {
+            if (selectedClass == null) {
+              throw Exception('Assign a class before saving the reviewer.');
+            }
+            if (selectedSubject == null || selectedSubject!.trim().isEmpty) {
+              throw Exception('Select a subject before saving the reviewer.');
+            }
+
+            await adminUpdateReviewer(reviewer['id'].toString(), {
+              'title': titleCtrl.text.trim(),
+              'classId': selectedClass!.id,
+              'subject': BpedCurriculumService.normalizeStoredSubject(
+                selectedSubject!,
+              ),
+              'category': BpedCurriculumService.normalizeStoredSubject(
+                selectedSubject!,
+              ),
+            });
+          },
+        ),
       ),
     );
   }
@@ -1791,6 +2018,7 @@ class _AdminOutlineField extends StatelessWidget {
     this.maxLines = 1,
     this.keyboard,
     this.caps = TextCapitalization.sentences,
+    this.inputFormatters,
   });
 
   final TextEditingController controller;
@@ -1798,6 +2026,7 @@ class _AdminOutlineField extends StatelessWidget {
   final int maxLines;
   final TextInputType? keyboard;
   final TextCapitalization caps;
+  final List<TextInputFormatter>? inputFormatters;
 
   @override
   Widget build(BuildContext context) {
@@ -1806,6 +2035,7 @@ class _AdminOutlineField extends StatelessWidget {
       maxLines: maxLines,
       keyboardType: keyboard,
       textCapitalization: caps,
+      inputFormatters: inputFormatters,
       decoration: InputDecoration(labelText: label),
     );
   }

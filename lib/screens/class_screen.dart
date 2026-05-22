@@ -9,7 +9,9 @@ import '../providers/auth_provider.dart';
 import '../providers/class_provider.dart';
 import '../models/class_model.dart';
 import '../models/user_model.dart';
+import '../services/bped_curriculum_service.dart';
 import '../widgets/dashboard_module.dart';
+import '../widgets/curriculum_subject_dropdown.dart';
 
 class ClassScreen extends ConsumerWidget {
   const ClassScreen({super.key});
@@ -71,10 +73,14 @@ class ClassScreen extends ConsumerWidget {
 
   void _showCreateSheet(BuildContext context, WidgetRef ref) {
     final nameCtrl = TextEditingController();
-    final subjectCtrl = TextEditingController();
     final schedCtrl = TextEditingController();
     final code = _generateCode();
+    int? yearLevel = 1;
     String semLabel = '1st Semester';
+    String? selectedSubject = BpedCurriculumService.resolveSubjectSelection(
+      yearLevel: yearLevel,
+      semesterLabel: semLabel,
+    );
 
     showModalBottomSheet(
       context: context,
@@ -95,11 +101,56 @@ class ClassScreen extends ConsumerWidget {
                 caps: TextCapitalization.characters,
               ),
               const SizedBox(height: 12),
-              _field(subjectCtrl, 'Subject'),
-              const SizedBox(height: 12),
               _field(schedCtrl, 'Schedule (e.g. Mon/Wed 1:00PM)'),
               const SizedBox(height: 16),
-              _semPicker(semLabel, (v) => ss(() => semLabel = v)),
+              DropdownButtonFormField<int>(
+                initialValue: yearLevel,
+                decoration: const InputDecoration(
+                  labelText: 'Year Level',
+                  border: OutlineInputBorder(),
+                ),
+                items: [1, 2, 3, 4]
+                    .map(
+                      (year) => DropdownMenuItem(
+                        value: year,
+                        child: Text(
+                          BpedCurriculumService.formatYearLevel(year),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  ss(() {
+                    yearLevel = value;
+                    selectedSubject =
+                        BpedCurriculumService.resolveSubjectSelection(
+                          currentValue: selectedSubject,
+                          yearLevel: yearLevel,
+                          semesterLabel: semLabel,
+                        );
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              _semPicker(
+                semLabel,
+                (v) => ss(() {
+                  semLabel = v;
+                  selectedSubject =
+                      BpedCurriculumService.resolveSubjectSelection(
+                        currentValue: selectedSubject,
+                        yearLevel: yearLevel,
+                        semesterLabel: semLabel,
+                      );
+                }),
+              ),
+              const SizedBox(height: 12),
+              CurriculumSubjectDropdown(
+                yearLevel: yearLevel,
+                semesterLabel: semLabel,
+                selectedValue: selectedSubject,
+                onChanged: (value) => ss(() => selectedSubject = value),
+              ),
               const SizedBox(height: 16),
               _codeBox(ctx, code),
             ],
@@ -113,10 +164,24 @@ class ClassScreen extends ConsumerWidget {
                 );
                 return;
               }
+              if (yearLevel == null) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Year level is required.')),
+                );
+                return;
+              }
+              if (selectedSubject == null || selectedSubject!.trim().isEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Subject is required.')),
+                );
+                return;
+              }
               final owner = ref.read(bootstrapAppUserProvider);
               if (owner == null) {
                 ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('Your session is not ready yet.')),
+                  const SnackBar(
+                    content: Text('Your session is not ready yet.'),
+                  ),
                 );
                 return;
               }
@@ -128,7 +193,10 @@ class ClassScreen extends ConsumerWidget {
                       ClassModel(
                         id: '',
                         className: nameCtrl.text.trim(),
-                        subject: subjectCtrl.text.trim(),
+                        yearLevel: yearLevel,
+                        subject: BpedCurriculumService.normalizeStoredSubject(
+                          selectedSubject!,
+                        ),
                         schedule: schedCtrl.text.trim(),
                         classCode: code,
                         semesterLabel: semLabel,
@@ -156,11 +224,16 @@ class ClassScreen extends ConsumerWidget {
 
   void _showEditSheet(BuildContext context, WidgetRef ref, ClassModel cls) {
     final nameCtrl = TextEditingController(text: cls.className);
-    final subjectCtrl = TextEditingController(text: cls.subject);
     final schedCtrl = TextEditingController(text: cls.schedule);
+    int? yearLevel = cls.yearLevel;
     String semLabel = cls.semesterLabel.isNotEmpty
         ? cls.semesterLabel
         : '1st Semester';
+    String? selectedSubject = BpedCurriculumService.resolveSubjectSelection(
+      currentValue: cls.subject,
+      yearLevel: yearLevel,
+      semesterLabel: semLabel,
+    );
 
     showModalBottomSheet(
       context: context,
@@ -181,11 +254,57 @@ class ClassScreen extends ConsumerWidget {
                 caps: TextCapitalization.characters,
               ),
               const SizedBox(height: 12),
-              _field(subjectCtrl, 'Subject'),
-              const SizedBox(height: 12),
               _field(schedCtrl, 'Schedule'),
               const SizedBox(height: 16),
-              _semPicker(semLabel, (v) => ss(() => semLabel = v)),
+              DropdownButtonFormField<int>(
+                initialValue: yearLevel,
+                decoration: const InputDecoration(
+                  labelText: 'Year Level',
+                  border: OutlineInputBorder(),
+                ),
+                items: [1, 2, 3, 4]
+                    .map(
+                      (year) => DropdownMenuItem(
+                        value: year,
+                        child: Text(
+                          BpedCurriculumService.formatYearLevel(year),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  ss(() {
+                    yearLevel = value;
+                    selectedSubject =
+                        BpedCurriculumService.resolveSubjectSelection(
+                          currentValue: selectedSubject,
+                          yearLevel: yearLevel,
+                          semesterLabel: semLabel,
+                        );
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              _semPicker(
+                semLabel,
+                (v) => ss(() {
+                  semLabel = v;
+                  selectedSubject =
+                      BpedCurriculumService.resolveSubjectSelection(
+                        currentValue: selectedSubject,
+                        yearLevel: yearLevel,
+                        semesterLabel: semLabel,
+                      );
+                }),
+              ),
+              const SizedBox(height: 12),
+              CurriculumSubjectDropdown(
+                yearLevel: yearLevel,
+                semesterLabel: semLabel,
+                selectedValue: selectedSubject,
+                preferredValue: cls.subject,
+                onChanged: (value) => ss(() => selectedSubject = value),
+              ),
               const SizedBox(height: 16),
               _codeBox(ctx, cls.classCode),
             ],
@@ -193,6 +312,18 @@ class ClassScreen extends ConsumerWidget {
             buttonColor: Colors.blueAccent,
             saving: saving,
             onTap: () async {
+              if (yearLevel == null) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Year level is required.')),
+                );
+                return;
+              }
+              if (selectedSubject == null || selectedSubject!.trim().isEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Subject is required.')),
+                );
+                return;
+              }
               ss(() => saving = true);
               try {
                 await FirebaseFirestore.instance
@@ -200,7 +331,10 @@ class ClassScreen extends ConsumerWidget {
                     .doc(cls.id)
                     .update({
                       'className': nameCtrl.text.trim(),
-                      'subject': subjectCtrl.text.trim(),
+                      'yearLevel': yearLevel,
+                      'subject': BpedCurriculumService.normalizeStoredSubject(
+                        selectedSubject!,
+                      ),
                       'schedule': schedCtrl.text.trim(),
                       'semesterLabel': semLabel,
                     });
@@ -489,6 +623,13 @@ class _ClassCard extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
+                  if (cls.yearLevel != null)
+                    DashboardTag(
+                      label: BpedCurriculumService.formatYearLevel(
+                        cls.yearLevel!,
+                      ),
+                      color: Colors.indigo.shade700,
+                    ),
                   if (cls.semesterLabel.isNotEmpty)
                     DashboardTag(
                       label: cls.semesterLabel,
@@ -643,23 +784,52 @@ class _RosterSheet extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 6),
-          if (cls.semesterLabel.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.green.shade300),
-              ),
-              child: Text(
-                cls.semesterLabel,
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (cls.yearLevel != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.indigo.shade200),
+                  ),
+                  child: Text(
+                    BpedCurriculumService.formatYearLevel(cls.yearLevel!),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.indigo.shade700,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              if (cls.semesterLabel.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.green.shade300),
+                  ),
+                  child: Text(
+                    cls.semesterLabel,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 16),
           const Divider(height: 1),
           Padding(

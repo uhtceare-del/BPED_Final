@@ -43,6 +43,7 @@ class ClassRepository {
     return ClassModel(
       id: doc.id,
       className: classData.className,
+      yearLevel: classData.yearLevel,
       subject: classData.subject,
       schedule: classData.schedule,
       classCode: classCode,

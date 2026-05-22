@@ -7,6 +7,7 @@ void main() {
       final model = ClassModel(
         id: 'class-1',
         className: 'BPED 1-A',
+        yearLevel: 1,
         subject: 'Team Sports',
         schedule: 'MWF 8:00 AM',
         classCode: 'AB23CD',
@@ -18,6 +19,7 @@ void main() {
       final map = model.toMap();
 
       expect(map['className'], 'BPED 1-A');
+      expect(map['yearLevel'], 1);
       expect(map['subject'], 'Team Sports');
       expect(map['classCode'], 'AB23CD');
       expect(map['semesterLabel'], '1st Semester');

@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'bped_curriculum_service.dart';
+
 const _seedSource = 'production_report_demo_v1';
 
 class ProductionSeedResult {
@@ -295,6 +297,7 @@ Future<ProductionSeedResult> seedProductionDataset({
     final ref = firestore.collection('classes').doc(cls.id);
     await writer.set(ref, {
       'className': cls.className,
+      'yearLevel': cls.yearLevel,
       'subject': cls.subject,
       'schedule': cls.schedule,
       'classCode': cls.classCode,
@@ -421,32 +424,6 @@ List<_SeedClass> _buildClasses({
     'Fri 8:00AM',
     'Fri 1:00PM',
   ];
-  const yearSubjects = {
-    '1': [
-      'Foundations of Physical Education',
-      'Movement Education',
-      'Rhythmic Activities',
-      'Personal and Community Wellness',
-    ],
-    '2': [
-      'Human Anatomy for Movement',
-      'Team Sports Fundamentals',
-      'Individual and Dual Sports',
-      'Outdoor and Adventure Education',
-    ],
-    '3': [
-      'Assessment in Physical Education',
-      'Adapted Physical Activity',
-      'Sports Officiating and Event Management',
-      'Exercise Programming',
-    ],
-    '4': [
-      'Practice Teaching in PE',
-      'Curriculum Design for BPED',
-      'Research in Sports and Wellness',
-      'Coaching and Leadership',
-    ],
-  };
 
   final classes = <_SeedClass>[];
   var index = 0;
@@ -459,14 +436,22 @@ List<_SeedClass> _buildClasses({
     ) {
       final ref = firestore.collection('classes').doc();
       final yearKey = '$year';
+      final semesterLabel = sectionIndex.isEven
+          ? '1st Semester'
+          : '2nd Semester';
+      final subjectOptions = BpedCurriculumService.subjectOptions(
+        yearLevel: year,
+        semesterLabel: semesterLabel,
+      );
+      final subjectIndex = (sectionIndex ~/ 2) % subjectOptions.length;
       classes.add(
         _SeedClass(
           id: ref.id,
           className: 'BPED $year-${sectionLetters[sectionIndex]}',
-          subject: yearSubjects[yearKey]![sectionIndex],
+          subject: subjectOptions[subjectIndex],
           schedule: schedules[index % schedules.length],
-          classCode: 'DMO${year}${sectionIndex + 1}${index + 10}',
-          semesterLabel: sectionIndex.isEven ? '1st Semester' : '2nd Semester',
+          classCode: 'DMO$year${sectionIndex + 1}${index + 10}',
+          semesterLabel: semesterLabel,
           instructorId: instructors[index % instructors.length].id,
           yearLevel: yearKey,
           section: 'PE-$year${sectionIndex + 1}',

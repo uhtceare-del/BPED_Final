@@ -7,9 +7,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../config/local_config.dart';
+import '../core/app_exceptions.dart';
+import '../core/input_validator.dart';
 import '../models/user_model.dart';
 import '../core/auth_guard.dart';
-import '../services/auth_service.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 export '../core/auth_guard.dart';
@@ -410,6 +411,23 @@ class AuthRepository {
     String? avatarUrl,
     String? fullName,
   }) async {
+    final emailError = Validator.validateEmail(email);
+    if (emailError != null) {
+      throw AuthException(AuthErrorCode.invalidEmail, emailError);
+    }
+
+    final passwordError = Validator.validatePassword(password);
+    if (passwordError != null) {
+      throw AuthException(AuthErrorCode.weakPassword, passwordError);
+    }
+
+    if (fullName != null && fullName.trim().isNotEmpty) {
+      final fullNameError = Validator.validateFullName(fullName);
+      if (fullNameError != null) {
+        throw AuthException(AuthErrorCode.unknown, fullNameError);
+      }
+    }
+
     final validationError = await EmailValidationService.validate(email);
     if (validationError != null) throw validationError;
 
@@ -451,6 +469,11 @@ class AuthRepository {
     required String yearLevel,
     required String section,
   }) async {
+    final fullNameError = Validator.validateFullName(fullName);
+    if (fullNameError != null) {
+      throw ValidationException(fullNameError);
+    }
+
     final user = auth.currentUser;
     await firestore.collection('users').doc(uid).set({
       'fullName': fullName,

@@ -223,7 +223,7 @@ class _CreateLessonScreenState extends ConsumerState<CreateLessonScreen> {
                               return DropdownMenuItem(
                                 value: cls.id,
                                 child: Text(
-                                  '${cls.className} • ${cls.subject}',
+                                  '${cls.className} • ${cls.classCode} • ${cls.subject}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: kNavy,

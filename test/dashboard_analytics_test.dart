@@ -34,6 +34,7 @@ void main() {
         'class-1': ClassModel(
           id: 'class-1',
           className: 'BPED 1-A',
+          yearLevel: 1,
           subject: 'Team Sports',
           schedule: 'MWF',
           classCode: 'AB23CD',
@@ -157,6 +158,7 @@ void main() {
           'class-1': ClassModel(
             id: 'class-1',
             className: 'BPED 1-A',
+            yearLevel: 1,
             subject: 'Team Sports',
             schedule: 'MWF',
             classCode: 'AB23CD',

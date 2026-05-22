@@ -324,7 +324,9 @@ class _ClassDropdown extends StatelessWidget {
           .map(
             (classModel) => DropdownMenuItem(
               value: classModel.id,
-              child: Text('${classModel.className} • ${classModel.subject}'),
+              child: Text(
+                '${classModel.className} • ${classModel.classCode} • ${classModel.subject}',
+              ),
             ),
           )
           .toList(),

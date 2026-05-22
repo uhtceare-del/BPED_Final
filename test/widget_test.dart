@@ -6,6 +6,7 @@ void main() {
     final model = ClassModel(
       id: 'class-1',
       className: 'BPED 1-A',
+      yearLevel: 1,
       subject: 'Team Sports',
       schedule: 'MWF 8:00 AM',
       classCode: 'AB23CD',
@@ -20,4 +21,3 @@ void main() {
     expect(map['enrolledStudentIds'], ['student-1']);
   });
 }
-

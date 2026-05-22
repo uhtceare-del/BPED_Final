@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/input_validator.dart';
 import 'auth_gate.dart';
 import 'home_screen.dart';
 import 'signup_screen.dart';
@@ -153,21 +154,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   label: 'Email Address',
                   icon: Icons.email_outlined,
                 ),
-                validator: (value) {
-                  final email = value?.trim() ?? '';
-                  if (email.isEmpty) {
-                    return 'Email required';
-                  }
-
-                  final isValidEmail = RegExp(
-                    r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                  ).hasMatch(email);
-                  if (!isValidEmail) {
-                    return 'Must be a valid email address';
-                  }
-
-                  return null;
-                },
+                validator: Validator.validateEmail,
               ),
               const SizedBox(height: 18),
               TextFormField(

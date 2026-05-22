@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/app_exceptions.dart';
+import '../core/input_validator.dart';
 import '../repositories/repository_validators.dart';
 
 /// Admin user management service with transaction safety
@@ -26,6 +27,20 @@ class AdminUserService {
   }) async {
     // Validate inputs
     RepositoryValidators.validateUserData({'email': email, 'role': role});
+    final emailError = Validator.validateEmail(email);
+    if (emailError != null) {
+      throw ValidationException(emailError);
+    }
+    final passwordError = Validator.validatePassword(password);
+    if (passwordError != null) {
+      throw ValidationException(passwordError);
+    }
+    if (fullName != null && fullName.trim().isNotEmpty) {
+      final fullNameError = Validator.validateFullName(fullName);
+      if (fullNameError != null) {
+        throw ValidationException(fullNameError);
+      }
+    }
 
     FirebaseApp? secondaryApp;
     try {

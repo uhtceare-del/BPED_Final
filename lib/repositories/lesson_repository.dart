@@ -132,4 +132,8 @@ class LessonRepository {
   Future<void> addLesson(LessonModel lesson) async {
     await createLesson(lesson);
   }
+
+  Future<void> updateLesson(String id, Map<String, dynamic> data) async {
+    await firestore.collection('lessons').doc(id).update(data);
+  }
 }

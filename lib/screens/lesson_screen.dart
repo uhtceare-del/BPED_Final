@@ -8,12 +8,173 @@ import '../providers/admin_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/class_provider.dart';
 import '../providers/lesson_provider.dart';
+import '../services/bped_curriculum_service.dart';
+import '../widgets/curriculum_subject_dropdown.dart';
 import '../widgets/dashboard_module.dart';
 import 'create_lesson_screen.dart';
 import 'lesson_detail_screen.dart';
 
 class LessonScreen extends ConsumerWidget {
   const LessonScreen({super.key});
+
+  void _showEditLessonSheet(
+    BuildContext context,
+    WidgetRef ref,
+    LessonModel lesson,
+    List<ClassModel> classes,
+  ) {
+    final titleCtrl = TextEditingController(text: lesson.title);
+    final descCtrl = TextEditingController(text: lesson.description);
+    var selectedClassId = lesson.classId;
+    ClassModel? selectedClass = classes
+        .where((cls) => cls.id == selectedClassId)
+        .firstOrNull;
+    String? selectedSubject = BpedCurriculumService.resolveSubjectSelection(
+      currentValue: lesson.subject,
+      preferredValue: selectedClass?.subject,
+      yearLevel: selectedClass?.yearLevel,
+      semesterLabel: selectedClass?.semesterLabel,
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setSheet) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Edit Lesson',
+                  style: TextStyle(
+                    color: kNavy,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(labelText: 'Lesson Title'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: descCtrl,
+                  minLines: 3,
+                  maxLines: 5,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedClassId.isEmpty
+                      ? null
+                      : selectedClassId,
+                  decoration: const InputDecoration(
+                    labelText: 'Assigned Class',
+                  ),
+                  items: classes
+                      .map(
+                        (cls) => DropdownMenuItem(
+                          value: cls.id,
+                          child: Text(
+                            '${cls.className} · ${cls.classCode} · ${cls.subject}',
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    setSheet(() {
+                      selectedClassId = value ?? '';
+                      selectedClass = classes
+                          .where((cls) => cls.id == selectedClassId)
+                          .firstOrNull;
+                      selectedSubject =
+                          BpedCurriculumService.resolveSubjectSelection(
+                            currentValue: selectedSubject,
+                            preferredValue: selectedClass?.subject,
+                            yearLevel: selectedClass?.yearLevel,
+                            semesterLabel: selectedClass?.semesterLabel,
+                          );
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                CurriculumSubjectDropdown(
+                  yearLevel: selectedClass?.yearLevel,
+                  semesterLabel: selectedClass?.semesterLabel ?? '1st Semester',
+                  selectedValue: selectedSubject,
+                  preferredValue: selectedClass?.subject,
+                  enabled: selectedClass != null,
+                  onChanged: (value) => setSheet(() => selectedSubject = value),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () async {
+                      if (selectedClass == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please select a class section.'),
+                          ),
+                        );
+                        return;
+                      }
+                      if (selectedSubject == null ||
+                          selectedSubject!.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please select a subject.'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      await ref
+                          .read(lessonRepositoryProvider)
+                          .updateLesson(lesson.id, {
+                            'title': titleCtrl.text.trim(),
+                            'description': descCtrl.text.trim(),
+                            'classId': selectedClass!.id,
+                            'courseId': selectedClass!.id,
+                            'subject':
+                                BpedCurriculumService.normalizeStoredSubject(
+                                  selectedSubject!,
+                                ),
+                            'category':
+                                BpedCurriculumService.normalizeStoredSubject(
+                                  selectedSubject!,
+                                ),
+                          });
+
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Lesson updated.')),
+                        );
+                      }
+                    },
+                    child: const Text('SAVE CHANGES'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   void _showDeleteLessonDialog(
     BuildContext context,
@@ -36,7 +197,10 @@ class LessonScreen extends ConsumerWidget {
             onPressed: () async {
               Navigator.pop(ctx);
               try {
-                final deletedBy = ref.read(authControllerProvider).currentUser?.uid;
+                final deletedBy = ref
+                    .read(authControllerProvider)
+                    .currentUser
+                    ?.uid;
                 await adminDeleteLesson(lesson.id, deletedBy: deletedBy);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -45,9 +209,9 @@ class LessonScreen extends ConsumerWidget {
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error deleting: $e')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Error deleting: $e')));
                 }
               }
             },
@@ -330,18 +494,37 @@ class LessonScreen extends ConsumerWidget {
                                         const SizedBox(height: 10),
                                         Align(
                                           alignment: Alignment.centerRight,
-                                          child: IconButton(
-                                            icon: const Icon(
-                                              Icons.delete_outline,
-                                              color: Colors.redAccent,
-                                            ),
-                                            tooltip: 'Move to Trash',
-                                            onPressed: () =>
-                                                _showDeleteLessonDialog(
-                                                  context,
-                                                  ref,
-                                                  lesson,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.edit_outlined,
+                                                  color: Colors.blueAccent,
                                                 ),
+                                                tooltip: 'Edit Lesson',
+                                                onPressed: () =>
+                                                    _showEditLessonSheet(
+                                                      context,
+                                                      ref,
+                                                      lesson,
+                                                      classes,
+                                                    ),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.delete_outline,
+                                                  color: Colors.redAccent,
+                                                ),
+                                                tooltip: 'Move to Trash',
+                                                onPressed: () =>
+                                                    _showDeleteLessonDialog(
+                                                      context,
+                                                      ref,
+                                                      lesson,
+                                                    ),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ],

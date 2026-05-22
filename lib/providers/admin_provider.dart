@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/input_validator.dart';
 import 'auth_provider.dart';
 import '../services/soft_delete_service.dart';
 
@@ -260,7 +261,24 @@ final adminTasksProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
 Future<void> adminCreateUser(Map<String, dynamic> data) async {
   final email = data['email'] as String;
   final password = (data['password'] as String?)?.trim();
+  final fullName = (data['fullName'] as String?)?.trim();
   final role = (data['role'] as String?)?.trim() ?? 'student';
+  final emailError = Validator.validateEmail(email);
+  if (emailError != null) {
+    throw Exception(emailError);
+  }
+  if (fullName != null && fullName.isNotEmpty) {
+    final fullNameError = Validator.validateFullName(fullName);
+    if (fullNameError != null) {
+      throw Exception(fullNameError);
+    }
+  }
+  if (password != null && password.isNotEmpty) {
+    final passwordError = Validator.validatePassword(password);
+    if (passwordError != null) {
+      throw Exception(passwordError);
+    }
+  }
   final payload = {
     ...Map<String, dynamic>.from(data)..remove('password'),
     'role': role,

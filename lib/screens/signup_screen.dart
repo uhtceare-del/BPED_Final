@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/input_validator.dart';
 import 'package:phys_ed/providers/auth_provider.dart';
 import 'auth_gate.dart';
 import 'home_screen.dart';
@@ -180,18 +181,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 _emailController,
                 'Email Address',
                 Icons.email_outlined,
-                validator: (value) {
-                  final email = value?.trim() ?? '';
-                  if (email.isEmpty) {
-                    return 'Email required';
-                  }
-                  if (!RegExp(
-                    r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                  ).hasMatch(email)) {
-                    return 'Must be a valid email address';
-                  }
-                  return null;
-                },
+                validator: Validator.validateEmail,
               ),
               const SizedBox(height: 16),
               _buildTextField(
@@ -199,15 +189,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 'Password',
                 Icons.lock_outline,
                 obscure: true,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Password required';
-                  }
-                  if (value.length < 8) {
-                    return 'Password must be at least 8 characters';
-                  }
-                  return null;
-                },
+                validator: Validator.validatePassword,
+                helperText:
+                    'Use 12+ characters with uppercase, lowercase, number, and special character.',
               ),
               const SizedBox(height: 24),
               _buildPrimaryButton('CREATE WITH EMAIL', _handleEmailSignUp),
@@ -257,11 +241,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     IconData icon, {
     bool obscure = false,
     String? Function(String?)? validator,
+    String? helperText,
   }) => TextFormField(
     controller: controller,
     obscureText: obscure,
     style: const TextStyle(color: Colors.white, fontSize: 14),
-    decoration: publicPortalInputDecoration(label: label, icon: icon),
+    decoration: publicPortalInputDecoration(
+      label: label,
+      icon: icon,
+    ).copyWith(helperText: helperText),
     validator: validator,
   );
 
