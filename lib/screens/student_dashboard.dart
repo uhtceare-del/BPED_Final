@@ -1,16 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// Models & Providers
-import '../models/submission_model.dart';
-import '../models/task_model.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/class_provider.dart';
-import '../providers/submission_provider.dart';
-import '../providers/task_provider.dart';
 import '../constants/app_colors.dart';
-import '../widgets/dashboard_analytics.dart';
 import '../widgets/dashboard_shell.dart';
 
 // Screens
@@ -26,8 +20,6 @@ class StudentDashboard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
     final classesAsync = ref.watch(myClassesProvider);
-    final tasksAsync = ref.watch(tasksForMyClassesProvider);
-    final submissionsAsync = ref.watch(mySubmissionsProvider);
 
     return DashboardScaffold(
       header: userAsync.when(
@@ -45,32 +37,6 @@ class StudentDashboard extends ConsumerWidget {
       ),
       body: classesAsync.when(
         data: (classes) {
-          final tasks = tasksAsync.value ?? const <TaskModel>[];
-          final submissions =
-              submissionsAsync.value ?? const <SubmissionModel>[];
-          final classIds = classes.map((cls) => cls.id).toSet();
-          final classMap = {for (final cls in classes) cls.id: cls};
-          final studentTasks =
-              tasks.where((task) => classIds.contains(task.classId)).toList()
-                ..sort((a, b) => a.deadline.compareTo(b.deadline));
-          final taskStatuses = buildStudentTaskStatusData(
-            tasks: studentTasks,
-            submissions: submissions,
-            classesById: classMap,
-          );
-          final onTimeCount = taskStatuses
-              .where((task) => task.state == StudentTaskState.onTime)
-              .length;
-          final lateCount = taskStatuses
-              .where((task) => task.state == StudentTaskState.late)
-              .length;
-          final pendingCount = taskStatuses
-              .where((task) => task.state == StudentTaskState.pending)
-              .length;
-          final overdueCount = taskStatuses
-              .where((task) => task.state == StudentTaskState.overdue)
-              .length;
-
           if (classes.isEmpty) {
             return _buildWelcomeState(context, ref);
           }
@@ -78,8 +44,6 @@ class StudentDashboard extends ConsumerWidget {
             color: kNavy,
             onRefresh: () async {
               ref.invalidate(myClassesProvider);
-              ref.invalidate(tasksForMyClassesProvider);
-              ref.invalidate(mySubmissionsProvider);
             },
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -88,78 +52,6 @@ class StudentDashboard extends ConsumerWidget {
                   padding: const EdgeInsets.all(16),
                   sliver: SliverList.list(
                     children: [
-                      InsightShell(
-                        title: 'Your academic pulse',
-                        subtitle:
-                            'Track submission timing, pending work, and overdue tasks before they stack up.',
-                        child: Column(
-                          children: [
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  StatBadge(
-                                    label: 'Classes',
-                                    value: '${classes.length}',
-                                    tone: kNavy,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  StatBadge(
-                                    label: 'Tasks',
-                                    value: '${studentTasks.length}',
-                                    tone: kGold,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  StatBadge(
-                                    label: 'On time',
-                                    value: '$onTimeCount',
-                                    tone: Colors.green.shade700,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  StatBadge(
-                                    label: 'Overdue',
-                                    value: '$overdueCount',
-                                    tone: kMaroon,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                            InteractiveBarChart(
-                              title: 'Submission status',
-                              data: [
-                                DashboardBarDatum(
-                                  label: 'On time',
-                                  value: onTimeCount,
-                                  color: Colors.green.shade700,
-                                ),
-                                DashboardBarDatum(
-                                  label: 'Late',
-                                  value: lateCount,
-                                  color: Colors.orange.shade800,
-                                ),
-                                DashboardBarDatum(
-                                  label: 'Pending',
-                                  value: pendingCount,
-                                  color: kNavy,
-                                ),
-                                DashboardBarDatum(
-                                  label: 'Overdue',
-                                  value: overdueCount,
-                                  color: kMaroon,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 18),
-                            StudentTaskStatusBoard(
-                              items: taskStatuses,
-                              emptyText:
-                                  'No active tasks across your enrolled classes yet.',
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: kNavy),
@@ -281,6 +173,36 @@ class StudentDashboard extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: kNavy),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LessonScreen()),
+                ),
+                icon: const Icon(
+                  Icons.menu_book_outlined,
+                  color: kNavy,
+                  size: 20,
+                ),
+                label: const Text(
+                  'VIEW BPED CURRICULUM',
+                  style: TextStyle(
+                    color: kNavy,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(

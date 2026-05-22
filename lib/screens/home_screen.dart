@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'login_screen.dart';
-import 'signup_screen.dart';
 import '../widgets/public_portal_shell.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -18,16 +17,6 @@ class HomeScreen extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const LoginScreen()),
-            );
-          },
-        ),
-        PublicPortalHeaderButton(
-          label: 'Sign Up',
-          filled: false,
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SignUpScreen()),
             );
           },
         ),

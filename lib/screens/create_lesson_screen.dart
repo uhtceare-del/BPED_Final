@@ -215,6 +215,7 @@ class _CreateLessonScreenState extends ConsumerState<CreateLessonScreen> {
                           )
                         else
                           DropdownButtonFormField<String>(
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: "Assign to Class",
                             ),
@@ -228,6 +229,8 @@ class _CreateLessonScreenState extends ConsumerState<CreateLessonScreen> {
                                     fontWeight: FontWeight.bold,
                                     color: kNavy,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               );
                             }).toList(),

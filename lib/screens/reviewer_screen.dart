@@ -553,6 +553,7 @@ class _UploadReviewerSheetState extends ConsumerState<_UploadReviewerSheet> {
                   );
                 }
                 return DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _selectedClassId,
                   decoration: const InputDecoration(
                     labelText: 'Class Section *',
@@ -567,6 +568,8 @@ class _UploadReviewerSheetState extends ConsumerState<_UploadReviewerSheet> {
                           value: c.id,
                           child: Text(
                             '${c.className} — ${c.classCode} — ${c.subject}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       )

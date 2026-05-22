@@ -102,7 +102,8 @@ class DashboardModuleHeader extends StatelessWidget {
                   subtitle,
                   style: TextStyle(
                     color: kNavy.withValues(alpha: 0.62),
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
                     height: 1.4,
                   ),
                 ),

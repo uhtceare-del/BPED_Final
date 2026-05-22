@@ -45,6 +45,7 @@ class CurriculumSubjectDropdown extends StatelessWidget {
       key: ValueKey(
         '$labelText-$yearLevel-$semesterLabel-${resolvedValue ?? ''}-${options.length}-$enabled',
       ),
+      isExpanded: true,
       initialValue: resolvedValue,
       decoration: InputDecoration(
         labelText: labelText,
@@ -53,7 +54,20 @@ class CurriculumSubjectDropdown extends StatelessWidget {
             : '${BpedCurriculumService.formatYearLevel(yearLevel!)} · $semesterLabel',
       ),
       items: options
-          .map((option) => DropdownMenuItem(value: option, child: Text(option)))
+          .map(
+            (option) => DropdownMenuItem(
+              value: option,
+              child: Text(option, maxLines: 2, overflow: TextOverflow.ellipsis),
+            ),
+          )
+          .toList(),
+      selectedItemBuilder: (context) => options
+          .map(
+            (option) => Align(
+              alignment: Alignment.centerLeft,
+              child: Text(option, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          )
           .toList(),
       onChanged: enabled ? onChanged : null,
     );

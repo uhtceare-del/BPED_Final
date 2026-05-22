@@ -1436,12 +1436,6 @@ class _AdminUploadsTab extends ConsumerWidget {
     ClassModel? selectedClass = classes
         .where((cls) => cls.id == selectedClassId)
         .firstOrNull;
-    String? selectedSubject = BpedCurriculumService.resolveSubjectSelection(
-      currentValue: (lesson['subject'] ?? lesson['category'] ?? '').toString(),
-      preferredValue: selectedClass?.subject,
-      yearLevel: selectedClass?.yearLevel,
-      semesterLabel: selectedClass?.semesterLabel,
-    );
 
     showModalBottomSheet(
       context: context,
@@ -1463,6 +1457,7 @@ class _AdminUploadsTab extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: selectedClassId.isEmpty ? null : selectedClassId,
               decoration: const InputDecoration(labelText: 'Assigned Class'),
               items: classes
@@ -1471,6 +1466,8 @@ class _AdminUploadsTab extends ConsumerWidget {
                       value: cls.id,
                       child: Text(
                         '${cls.className} · ${cls.classCode} · ${cls.subject}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   )
@@ -1481,24 +1478,23 @@ class _AdminUploadsTab extends ConsumerWidget {
                   selectedClass = classes
                       .where((cls) => cls.id == selectedClassId)
                       .firstOrNull;
-                  selectedSubject =
-                      BpedCurriculumService.resolveSubjectSelection(
-                        currentValue: selectedSubject,
-                        preferredValue: selectedClass?.subject,
-                        yearLevel: selectedClass?.yearLevel,
-                        semesterLabel: selectedClass?.semesterLabel,
-                      );
                 });
               },
             ),
             const SizedBox(height: 12),
-            CurriculumSubjectDropdown(
-              yearLevel: selectedClass?.yearLevel,
-              semesterLabel: selectedClass?.semesterLabel ?? '1st Semester',
-              selectedValue: selectedSubject,
-              preferredValue: selectedClass?.subject,
-              enabled: selectedClass != null,
-              onChanged: (value) => setSheet(() => selectedSubject = value),
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Subject',
+                helperText:
+                    'Locked to the selected class and the static BPED curriculum.',
+              ),
+              child: Text(
+                selectedClass?.subject ?? 'Select a class section first.',
+                style: TextStyle(
+                  color: selectedClass == null ? Colors.grey : kNavy,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
           buttonLabel: 'SAVE CHANGES',
@@ -1507,9 +1503,6 @@ class _AdminUploadsTab extends ConsumerWidget {
             if (selectedClass == null) {
               throw Exception('Assign a class before saving the lesson.');
             }
-            if (selectedSubject == null || selectedSubject!.trim().isEmpty) {
-              throw Exception('Select a subject before saving the lesson.');
-            }
 
             await adminUpdateLesson(lesson['id'].toString(), {
               'title': titleCtrl.text.trim(),
@@ -1517,10 +1510,10 @@ class _AdminUploadsTab extends ConsumerWidget {
               'classId': selectedClass!.id,
               'courseId': selectedClass!.id,
               'subject': BpedCurriculumService.normalizeStoredSubject(
-                selectedSubject!,
+                selectedClass!.subject,
               ),
               'category': BpedCurriculumService.normalizeStoredSubject(
-                selectedSubject!,
+                selectedClass!.subject,
               ),
             });
           },
@@ -1563,6 +1556,7 @@ class _AdminUploadsTab extends ConsumerWidget {
             _AdminOutlineField(controller: titleCtrl, label: 'Title'),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: selectedClassId.isEmpty ? null : selectedClassId,
               decoration: const InputDecoration(labelText: 'Assigned Class'),
               items: classes
@@ -1571,6 +1565,8 @@ class _AdminUploadsTab extends ConsumerWidget {
                       value: cls.id,
                       child: Text(
                         '${cls.className} · ${cls.classCode} · ${cls.subject}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   )

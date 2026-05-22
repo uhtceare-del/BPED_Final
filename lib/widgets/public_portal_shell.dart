@@ -54,7 +54,8 @@ class PublicPortalScaffold extends StatelessWidget {
                     child: Row(
                       children: [
                         Expanded(child: _BrandBadge(onTap: onBrandTap)),
-                        Wrap(spacing: 8, runSpacing: 8, children: actions),
+                        if (actions.isNotEmpty)
+                          Wrap(spacing: 8, runSpacing: 8, children: actions),
                       ],
                     ),
                   ),

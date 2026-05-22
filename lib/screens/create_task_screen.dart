@@ -315,6 +315,7 @@ class _ClassDropdown extends StatelessWidget {
     }
 
     return DropdownButtonFormField<String>(
+      isExpanded: true,
       initialValue: selectedClassId,
       decoration: const InputDecoration(
         labelText: 'Assign Class Section',
@@ -326,6 +327,8 @@ class _ClassDropdown extends StatelessWidget {
               value: classModel.id,
               child: Text(
                 '${classModel.className} • ${classModel.classCode} • ${classModel.subject}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           )

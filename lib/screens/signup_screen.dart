@@ -124,18 +124,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   Widget build(BuildContext context) {
     return PublicPortalScaffold(
       onBrandTap: _openHome,
-      actions: [
-        PublicPortalHeaderButton(
-          label: 'Login',
-          filled: false,
-          onPressed: _openLogin,
-        ),
-        PublicPortalHeaderButton(
-          label: 'Sign Up',
-          filled: true,
-          onPressed: null,
-        ),
-      ],
+      actions: const [],
       contentAlignment: Alignment.center,
       maxContentWidth: 440,
       child: PublicPortalPanel(
